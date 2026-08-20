@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mi Salud API</title>
+<style>*{margin:0;box-sizing:border-box}body{font-family:-apple-system,sans-serif;background:#0a0a0f;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}.card{text-align:center;max-width:420px}h1{font-size:28px;margin-bottom:8px}p{color:rgba(255,255,255,0.5);font-size:14px;line-height:1.6}.ep{background:rgba(255,255,255,0.06);border-radius:10px;padding:12px 16px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}.ep a{color:#3b82f6;text-decoration:none;font-family:monospace;font-size:13px}.ep span{color:rgba(255,255,255,0.35);font-size:11px}.b{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:600;background:rgba(16,185,129,0.15);color:#10b981;margin-right:6px}</style></head>
+<body><div class="card">
+<h1>⚡ Mi Salud</h1><p>API Garmin + Strava</p><p style="margin-top:8px;font-size:12px">Pulsa Sync en tu dashboard para descargar datos.</p>
+<div style="margin-top:24px;text-align:left">
+<div class="ep"><a href="/api/dashboard"><span class="b">GET</span>/api/dashboard</a><span>Leer datos</span></div>
+<div class="ep"><a href="/api/sync-garmin"><span class="b">GET</span>/api/sync-garmin</a><span>Descargar Garmin</span></div>
+<div class="ep"><a href="/api/sync-strava"><span class="b">GET</span>/api/sync-strava</a><span>Descargar Strava</span></div>
+<div class="ep"><a href="/api/calculate"><span class="b">GET</span>/api/calculate</a><span>Calcular métricas</span></div>
+</div></div></body></html>
