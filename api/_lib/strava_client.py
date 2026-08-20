@@ -13,7 +13,7 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-TOKEN_FILE = Path(__file__).parent / ".strava_tokens.json"
+TOKEN_FILE = Path("/tmp/.strava_tokens.json")
 API_BASE = "https://www.strava.com/api/v3"
 
 
