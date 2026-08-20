@@ -1,12 +1,360 @@
 <!DOCTYPE html>
 <html lang="es">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mi Salud API</title>
-<style>*{margin:0;box-sizing:border-box}body{font-family:-apple-system,sans-serif;background:#0a0a0f;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}.card{text-align:center;max-width:420px}h1{font-size:28px;margin-bottom:8px}p{color:rgba(255,255,255,0.5);font-size:14px;line-height:1.6}.ep{background:rgba(255,255,255,0.06);border-radius:10px;padding:12px 16px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}.ep a{color:#3b82f6;text-decoration:none;font-family:monospace;font-size:13px}.ep span{color:rgba(255,255,255,0.35);font-size:11px}.b{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:600;background:rgba(16,185,129,0.15);color:#10b981;margin-right:6px}</style></head>
-<body><div class="card">
-<h1>⚡ Mi Salud</h1><p>API Garmin + Strava</p><p style="margin-top:8px;font-size:12px">Pulsa Sync en tu dashboard para descargar datos.</p>
-<div style="margin-top:24px;text-align:left">
-<div class="ep"><a href="/api/dashboard"><span class="b">GET</span>/api/dashboard</a><span>Leer datos</span></div>
-<div class="ep"><a href="/api/sync-garmin"><span class="b">GET</span>/api/sync-garmin</a><span>Descargar Garmin</span></div>
-<div class="ep"><a href="/api/sync-strava"><span class="b">GET</span>/api/sync-strava</a><span>Descargar Strava</span></div>
-<div class="ep"><a href="/api/calculate"><span class="b">GET</span>/api/calculate</a><span>Calcular métricas</span></div>
-</div></div></body></html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0f">
+<title>Mi Salud — Toni</title>
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiTWkgU2FsdWQiLCJzaG9ydF9uYW1lIjoiTWkgU2FsdWQiLCJzdGFydF91cmwiOiIvIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiIzBhMGEwZiIsInRoZW1lX2NvbG9yIjoiIzBhMGEwZiJ9">
+<style>
+*{margin:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:4px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
+<script>
+const{useState,useEffect,useCallback}=React;
+const h=React.createElement;
+const{LineChart,Line,AreaChart,Area,BarChart,Bar,XAxis,YAxis,Tooltip,ResponsiveContainer,Cell}=Recharts;
+
+const API="";// auto-detect: same origin
+const api=(p)=>fetch((API||"")+"/api/"+p).then(r=>r.json());
+
+// Colors
+const A={run:"#e85d4a",ride:"#2d9cdb",hike:"#27ae60",sleep:"#7c5cfc",hr:"#ef4444",bat:"#10b981",stress:"#f59e0b",vo2:"#06b6d4",steps:"#3b82f6",fit:"#8b5cf6",fat:"#f97316"};
+const SC={Run:A.run,Ride:A.ride,Hike:A.hike};
+const SI={Run:"🏃",Ride:"🚴",Hike:"⛰️"};
+
+// Themes
+const L={bg:"#f0f1f5",cd:"#fff",bd:"rgba(0,0,0,0.06)",tx:"#111827",sb:"#6b7280",mt:"#9ca3af",hd:"linear-gradient(135deg,#111827,#1e293b)",ht:"#fff",hs:"rgba(255,255,255,0.4)",tb:"rgba(255,255,255,0.08)",to:"rgba(255,255,255,0.16)",tt:"rgba(255,255,255,0.35)",tto:"#fff",bo:"#c7dbf5",ph:"#f3f4f6",tip:{backgroundColor:"#fff",color:"#111827",border:"none",borderRadius:8,boxShadow:"0 4px 16px rgba(0,0,0,0.1)",fontSize:11,padding:"6px 10px"},bG:{b:"#dcfce7",f:"#166534"},bY:{b:"#fef3c7",f:"#92400e"},bR:{b:"#fee2e2",f:"#dc2626"}};
+const D={bg:"#0a0a0f",cd:"#16161e",bd:"rgba(255,255,255,0.06)",tx:"#f1f5f9",sb:"#94a3b8",mt:"#64748b",hd:"linear-gradient(135deg,#0f0f17,#141422)",ht:"#f1f5f9",hs:"rgba(241,245,249,0.35)",tb:"rgba(255,255,255,0.04)",to:"rgba(255,255,255,0.1)",tt:"rgba(255,255,255,0.3)",tto:"#f1f5f9",bo:"#1e3a5f",ph:"#1e1e2a",tip:{backgroundColor:"#1e1e2a",color:"#f1f5f9",border:"none",borderRadius:8,boxShadow:"0 4px 16px rgba(0,0,0,0.4)",fontSize:11,padding:"6px 10px"},bG:{b:"rgba(16,185,129,0.15)",f:"#6ee7b7"},bY:{b:"rgba(245,158,11,0.15)",f:"#fcd34d"},bR:{b:"rgba(239,68,68,0.15)",f:"#fca5a5"}};
+
+// Ring component
+function Ring({value,max,size=88,stroke=7,color,children}){
+  const r=(size-stroke)/2,c=2*Math.PI*r,o=c-(value/max)*c;
+  return h("div",{style:{position:"relative",width:size,height:size}},
+    h("svg",{width:size,height:size,style:{transform:"rotate(-90deg)"}},
+      h("circle",{cx:size/2,cy:size/2,r,fill:"none",stroke:"currentColor",opacity:0.08,strokeWidth:stroke}),
+      h("circle",{cx:size/2,cy:size/2,r,fill:"none",stroke:color,strokeWidth:stroke,strokeDasharray:c,strokeDashoffset:o,strokeLinecap:"round",style:{transition:"stroke-dashoffset 0.8s"}})
+    ),
+    h("div",{style:{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}},children)
+  );
+}
+
+// Card component
+function Card({title,accent,t,style:s,children}){
+  return h("div",{style:{background:t.cd,borderRadius:14,padding:"16px 18px",border:"1px solid "+t.bd,position:"relative",overflow:"hidden",display:"flex",flexDirection:"column",gap:12,transition:"all 0.3s",...(s||{})}},
+    accent&&h("div",{style:{position:"absolute",top:0,left:0,right:0,height:3,background:accent}}),
+    h("span",{style:{fontSize:11,fontWeight:700,color:t.sb,textTransform:"uppercase",letterSpacing:"0.06em"}},title),
+    children
+  );
+}
+
+// Decode polyline for route maps
+function decodePolyline(s){const p=[];let i=0,la=0,ln=0;while(i<s.length){let b,sh=0,r=0;do{b=s.charCodeAt(i++)-63;r|=(b&31)<<sh;sh+=5}while(b>=32);la+=(r&1)?~(r>>1):(r>>1);sh=0;r=0;do{b=s.charCodeAt(i++)-63;r|=(b&31)<<sh;sh+=5}while(b>=32);ln+=(r&1)?~(r>>1):(r>>1);p.push([la/1e5,ln/1e5])}return p}
+
+// Activity detail modal
+function Detail({a,onClose,t}){
+  const color=SC[a.sport]||"#666";
+  const pts=a.polyline?decodePolyline(a.polyline):[];
+  let svgContent=null;
+  if(pts.length>1){
+    const las=pts.map(p=>p[0]),lns=pts.map(p=>p[1]);
+    const mla=Math.min(...las),xla=Math.max(...las),mln=Math.min(...lns),xln=Math.max(...lns);
+    const w=xln-mln||.001,ht=xla-mla||.001,sc=Math.min(260/w,150/ht);
+    const mp=pts.map(p=>[(p[1]-mln)*sc+20,(xla-p[0])*sc+15]);
+    const d=mp.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ");
+    const vw=w*sc+40,vh=ht*sc+30;
+    svgContent=h("div",{style:{background:"#0f172a",borderRadius:12,padding:10,display:"flex",justifyContent:"center",marginBottom:16}},
+      h("svg",{viewBox:"0 0 "+vw+" "+vh,width:"100%",height:180,style:{maxWidth:400}},
+        h("path",{d,fill:"none",stroke:color,strokeWidth:2.5,strokeLinecap:"round",opacity:0.3}),
+        h("path",{d,fill:"none",stroke:color,strokeWidth:2.5,strokeLinecap:"round"}),
+        h("circle",{cx:mp[0][0],cy:mp[0][1],r:5,fill:"#22c55e"}),
+        h("circle",{cx:mp[mp.length-1][0],cy:mp[mp.length-1][1],r:5,fill:"#ef4444"})
+      )
+    );
+  }
+  const stats=[{l:"Distancia",v:a.distance+" km"},{l:"Tiempo",v:a.time},{l:"Desnivel",v:"↑"+a.elevation+"m"}];
+  if(a.pace)stats.push({l:"Ritmo",v:a.pace+"/km"});
+  if(a.avg_speed)stats.push({l:"Vel.",v:a.avg_speed});
+  if(a.avg_hr)stats.push({l:"FC",v:Math.round(a.avg_hr)+" bpm"});
+  if(a.avg_watts)stats.push({l:"Potencia",v:Math.round(a.avg_watts)+"W"});
+
+  return h("div",{onClick:onClose,style:{position:"fixed",inset:0,zIndex:100,background:"rgba(0,0,0,0.5)",display:"flex",justifyContent:"center",alignItems:"flex-end",backdropFilter:"blur(4px)"}},
+    h("div",{onClick:e=>e.stopPropagation(),style:{width:"100%",maxWidth:560,maxHeight:"92vh",background:t.bg,borderRadius:"20px 20px 0 0",overflow:"auto"}},
+      h("div",{style:{background:color,padding:"16px 20px",borderRadius:"20px 20px 0 0",color:"#fff",position:"sticky",top:0,zIndex:2}},
+        h("div",{style:{display:"flex",justifyContent:"space-between"}},
+          h("div",null,
+            h("div",{style:{fontSize:18,fontWeight:700}},(a.icon||SI[a.sport]||"🏋️")+" "+a.name),
+            h("div",{style:{fontSize:12,opacity:0.8}},(a.date_formatted||a.date)+" · "+a.sport)
+          ),
+          h("button",{onClick:onClose,style:{background:"rgba(255,255,255,0.2)",border:"none",borderRadius:"50%",width:32,height:32,color:"#fff",fontSize:18,cursor:"pointer"}},"✕")
+        ),
+        h("div",{style:{display:"flex",gap:16,marginTop:14,flexWrap:"wrap"}},
+          stats.map((s,i)=>h("div",{key:i},h("div",{style:{fontSize:18,fontWeight:700}},s.v),h("div",{style:{fontSize:10,opacity:0.7}},s.l)))
+        )
+      ),
+      h("div",{style:{padding:"16px 16px 32px"}},svgContent)
+    )
+  );
+}
+
+// Main Dashboard
+function App(){
+  const[dk,setDk]=useState(true);
+  const[tab,setTab]=useState("resumen");
+  const[sel,setSel]=useState(null);
+  const[flt,setFlt]=useState("Todas");
+  const[data,setData]=useState(null);
+  const[syncing,setSyncing]=useState(false);
+  const[msg,setMsg]=useState("");
+  const t=dk?D:L;
+
+  const load=useCallback(()=>{api("dashboard").then(j=>{if(j.has_data)setData(j)}).catch(console.error)},[]);
+  useEffect(()=>{load()},[load]);
+
+  const sync=useCallback(async()=>{
+    setSyncing(true);
+    setMsg("Garmin...");try{await api("sync-garmin")}catch(e){}
+    setMsg("Strava...");try{await api("sync-strava")}catch(e){}
+    setMsg("Calculando...");try{await api("calculate")}catch(e){}
+    setMsg("Listo ✓");load();
+    setTimeout(()=>{setSyncing(false);setMsg("")},1000);
+  },[load]);
+
+  if(!data)return h("div",{style:{minHeight:"100vh",background:t.bg,display:"flex",alignItems:"center",justifyContent:"center"}},
+    h("div",{style:{textAlign:"center",color:t.tx}},
+      h("div",{style:{fontSize:40,marginBottom:16}},"⏳"),
+      h("div",{style:{fontSize:16,fontWeight:700}},"Cargando datos..."),
+      h("div",{style:{fontSize:12,color:t.sb,marginTop:8}},"Si es la primera vez, pulsa Sync"),
+      h("button",{onClick:sync,style:{marginTop:20,padding:"10px 24px",border:"none",borderRadius:12,background:"linear-gradient(135deg,#3b82f6,#8b5cf6)",color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer"}},"🔄 Sincronizar ahora")
+    )
+  );
+
+  const d=data.daily||{},sl=data.sleep||{},hrv=data.hrv||{},acts=data.activities||[];
+  const rd=data.readiness||{},fit=data.fitness?.current||{},races=data.race_predictions||[];
+  const vo2=data.vo2max_estimated||0,stW=data.steps_week||[];
+  const hrvW=(data.hrv_week||[]).map(x=>({d:x.d,hrv:x.hrv,rhr:x.rhr}));
+  const hrH=(data.heart_rate?.hourly||[]).map(x=>({h:x.hour,hr:x.hr}));
+  const bbD=(data.body_battery||[]).map(x=>({h:x.time,v:x.battery}));
+  const filtered=flt==="Todas"?acts:acts.filter(a=>a.sport===flt);
+  const totalKm=acts.reduce((s,a)=>s+(a.distance||0),0);
+  const totalElev=acts.reduce((s,a)=>s+(a.elevation||0),0);
+  const tabs=[{id:"resumen",l:"Resumen"},{id:"rendimiento",l:"Rendimiento"},{id:"actividades",l:"Actividades"}];
+
+  return h("div",{style:{minHeight:"100vh",background:t.bg,transition:"background 0.3s",color:t.tx}},
+    // Header
+    h("header",{style:{background:t.hd,padding:"16px 20px 14px",color:t.ht,position:"sticky",top:0,zIndex:10}},
+      h("div",{style:{maxWidth:560,margin:"0 auto"}},
+        h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}},
+          h("div",null,
+            h("div",{style:{fontSize:10,color:t.hs,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em"}},"Mi Salud"),
+            h("div",{style:{fontSize:19,fontWeight:700}},"Hola, "+(data.profile?.name?.split(" ")[0]||"Toni"))
+          ),
+          h("div",{style:{display:"flex",gap:8}},
+            h("button",{onClick:sync,disabled:syncing,style:{display:"flex",alignItems:"center",gap:6,padding:"7px 14px",border:"none",borderRadius:10,cursor:"pointer",background:syncing?"rgba(16,185,129,0.15)":"rgba(255,255,255,0.1)",color:syncing?"#6ee7b7":t.ht,fontSize:12,fontWeight:600}},syncing?"⏳ "+msg:"🔄 Sync"),
+            h("button",{onClick:()=>setDk(!dk),style:{width:36,height:36,border:"none",borderRadius:10,cursor:"pointer",background:"rgba(255,255,255,0.1)",color:t.ht,fontSize:16}},dk?"☀️":"🌙")
+          )
+        ),
+        h("div",{style:{display:"flex",gap:3,background:t.tb,borderRadius:10,padding:3}},
+          tabs.map(x=>h("button",{key:x.id,onClick:()=>setTab(x.id),style:{flex:1,padding:"7px 0",fontSize:11,fontWeight:600,border:"none",borderRadius:8,cursor:"pointer",background:tab===x.id?t.to:"transparent",color:tab===x.id?t.tto:t.tt,transition:"all 0.2s"}},x.l))
+        )
+      )
+    ),
+
+    // Main
+    h("main",{style:{maxWidth:560,margin:"0 auto",padding:"14px 12px 40px"}},
+
+      // === RESUMEN ===
+      tab==="resumen"&&h(React.Fragment,null,
+        // Rings
+        h("div",{style:{display:"flex",justifyContent:"space-around",flexWrap:"wrap",gap:6,marginBottom:14}},
+          [{l:"Body Battery",v:d.body_battery_high||0,m:100,c:A.bat,u:"%"},{l:"Sueño",v:sl.score||0,m:100,c:A.sleep,u:"pts"},{l:"Readiness",v:rd.score||0,m:100,c:(rd.score||0)>=70?A.bat:A.stress,u:""},{l:"VO₂",v:vo2,m:60,c:A.vo2,u:"ml/kg"}].map((m,i)=>
+            h("div",{key:i,style:{display:"flex",flexDirection:"column",alignItems:"center",gap:4}},
+              h(Ring,{value:m.v,max:m.m,color:m.c},
+                h("span",{style:{fontSize:20,fontWeight:700,color:t.tx}},m.v),
+                h("span",{style:{fontSize:9,color:t.sb}},m.u)
+              ),
+              h("span",{style:{fontSize:10,fontWeight:600,color:t.sb}},m.l)
+            )
+          )
+        ),
+        // Quick stats
+        h("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:14}},
+          [{i:"👣",v:(d.steps||0).toLocaleString(),u:"pasos"},{i:"🔥",v:(d.calories_total||0).toLocaleString(),u:"kcal"},{i:"❤️",v:d.resting_hr||"—",u:"bpm"},{i:"⚡",v:d.active_minutes||"—",u:"min"}].map((s,i)=>
+            h("div",{key:i,style:{background:t.cd,borderRadius:10,padding:"8px 4px",border:"1px solid "+t.bd,textAlign:"center"}},
+              h("div",{style:{fontSize:15}},s.i),h("div",{style:{fontSize:16,fontWeight:700,color:t.tx}},s.v),h("div",{style:{fontSize:9,color:t.mt}},s.u)
+            )
+          )
+        ),
+        // HRV SpO2 Resp
+        h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}},
+          [{ic:"💓",l:"HRV",v:hrv.last_night_avg||hrv.weekly_avg||"—",u:"ms"},{ic:"🫁",l:"SpO₂",v:d.avg_spo2||"—",u:"%"},{ic:"🌬️",l:"Resp.",v:data.respiration?.avg||"—",u:"rpm"}].map((s,i)=>
+            h("div",{key:i,style:{background:t.cd,borderRadius:10,padding:"10px 8px",border:"1px solid "+t.bd,textAlign:"center"}},
+              h("div",{style:{fontSize:16}},s.ic),h("div",{style:{fontSize:20,fontWeight:700,color:t.tx}},s.v),h("div",{style:{fontSize:9,color:t.mt}},s.u),h("div",{style:{fontSize:10,fontWeight:600,color:t.sb,marginTop:2}},s.l)
+            )
+          )
+        ),
+        // Sleep
+        h(Card,{title:"Sueño",accent:A.sleep,t,style:{marginBottom:14}},
+          h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"baseline"}},
+            h("span",{style:{fontSize:24,fontWeight:700,color:t.tx}},sl.total_formatted||"—"),
+            h("span",{style:{fontSize:11,color:t.sb}},(sl.start_time||"")+" → "+(sl.end_time||"")+" · Score "+(sl.score||"—"))
+          ),
+          sl.deep_min>0&&h(React.Fragment,null,
+            h("div",{style:{display:"flex",borderRadius:6,overflow:"hidden",height:12}},
+              [{w:sl.awake_min,c:"#f97066"},{w:sl.rem_min,c:"#a78bfa"},{w:sl.light_min,c:"#60a5fa"},{w:sl.deep_min,c:"#1e3a5f"}].map((p,i)=>h("div",{key:i,style:{flex:p.w||1,background:p.c}}))
+            ),
+            h("div",{style:{display:"flex",gap:10,flexWrap:"wrap"}},
+              [{l:"Despierto",c:"#f97066",m:sl.awake_min},{l:"REM",c:"#a78bfa",m:sl.rem_min},{l:"Ligero",c:"#60a5fa",m:sl.light_min},{l:"Profundo",c:"#1e3a5f",m:sl.deep_min}].map((p,i)=>
+                h("div",{key:i,style:{display:"flex",alignItems:"center",gap:4}},
+                  h("div",{style:{width:6,height:6,borderRadius:"50%",background:p.c}}),
+                  h("span",{style:{fontSize:10,color:t.sb}},p.l),
+                  h("span",{style:{fontSize:10,fontWeight:700,color:t.tx}},Math.floor((p.m||0)/60)+"h"+(p.m||0)%60+"m")
+                )
+              )
+            )
+          )
+        ),
+        // HRV Week
+        hrvW.length>0&&h(Card,{title:"HRV + FC Reposo — Semana",accent:A.fit,t,style:{marginBottom:14}},
+          h(ResponsiveContainer,{width:"100%",height:90},
+            h(LineChart,{data:hrvW,margin:{top:5,right:5,left:-25,bottom:0}},
+              h(XAxis,{dataKey:"d",axisLine:false,tickLine:false,tick:{fontSize:10,fill:t.sb}}),
+              h(YAxis,{hide:true,domain:[30,90]}),
+              h(Tooltip,{contentStyle:t.tip}),
+              h(Line,{type:"monotone",dataKey:"hrv",stroke:A.fit,strokeWidth:2.5,dot:{fill:A.fit,r:3},name:"HRV ms"}),
+              h(Line,{type:"monotone",dataKey:"rhr",stroke:A.hr,strokeWidth:1.5,strokeDasharray:"4 3",dot:{fill:A.hr,r:2},name:"FC rep"})
+            )
+          )
+        ),
+        // Steps Week
+        stW.length>0&&h(Card,{title:"Pasos — Semana",accent:A.steps,t,style:{marginBottom:14}},
+          h(ResponsiveContainer,{width:"100%",height:90},
+            h(BarChart,{data:stW,barSize:26,margin:{top:0,right:0,left:-25,bottom:0}},
+              h(XAxis,{dataKey:"day",axisLine:false,tickLine:false,tick:{fontSize:10,fill:t.sb}}),
+              h(YAxis,{hide:true}),
+              h(Tooltip,{contentStyle:t.tip,formatter:v=>[v.toLocaleString(),"pasos"]}),
+              h(Bar,{dataKey:"steps",radius:[4,4,0,0]},stW.map((e,i)=>h(Cell,{key:i,fill:e.steps>=10000?A.steps:t.bo})))
+            )
+          )
+        ),
+        // Body Battery + HR
+        h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}},
+          bbD.length>0&&h(Card,{title:"Body Battery",accent:A.bat,t},
+            h(ResponsiveContainer,{width:"100%",height:70},h(AreaChart,{data:bbD,margin:{top:0,right:0,left:-25,bottom:0}},h(XAxis,{dataKey:"h",hide:true}),h(YAxis,{hide:true,domain:[0,100]}),h(Tooltip,{contentStyle:t.tip,formatter:v=>[Math.round(v)+"%",""]}),h(Area,{type:"monotone",dataKey:"v",stroke:A.bat,strokeWidth:2,fill:A.bat,fillOpacity:0.15})))
+          ),
+          hrH.length>0&&h(Card,{title:"FC — Hoy",accent:A.hr,t},
+            h(ResponsiveContainer,{width:"100%",height:70},h(AreaChart,{data:hrH,margin:{top:0,right:0,left:-25,bottom:0}},h(XAxis,{dataKey:"h",hide:true}),h(YAxis,{hide:true,domain:[40,110]}),h(Tooltip,{contentStyle:t.tip,formatter:v=>[v+" bpm",""]}),h(Area,{type:"monotone",dataKey:"hr",stroke:A.hr,strokeWidth:2,fill:A.hr,fillOpacity:0.1})))
+          )
+        ),
+        // Activities preview
+        h(Card,{title:"Últimas actividades",t},
+          acts.slice(0,4).map((a,i)=>
+            h("div",{key:i,onClick:()=>setSel(a),style:{display:"flex",alignItems:"center",gap:10,padding:"7px 0",cursor:"pointer",borderBottom:i<3?"1px solid "+t.bd:"none"}},
+              h("div",{style:{width:34,height:34,borderRadius:8,background:(SC[a.sport]||"#666")+"15",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}},a.icon||SI[a.sport]||"🏋️"),
+              h("div",{style:{flex:1}},h("div",{style:{fontSize:12,fontWeight:600,color:t.tx}},a.name),h("div",{style:{fontSize:10,color:t.sb}},(a.date_formatted||a.date)+" · "+a.distance+"km")),
+              h("span",{style:{fontSize:16,color:t.mt}},"›")
+            )
+          ),
+          h("button",{onClick:()=>setTab("actividades"),style:{width:"100%",padding:"7px",marginTop:6,border:"none",borderRadius:8,background:t.ph,color:t.sb,fontSize:11,fontWeight:600,cursor:"pointer"}},"Ver todas →")
+        )
+      ),
+
+      // === RENDIMIENTO ===
+      tab==="rendimiento"&&h(React.Fragment,null,
+        h(Card,{title:"Fitness · Fatiga · Forma",accent:A.fit,t,style:{marginBottom:14}},
+          h("div",{style:{display:"flex",justifyContent:"space-around",marginBottom:8}},
+            h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:22,fontWeight:700,color:A.fit}},fit.ctl||"—"),h("div",{style:{fontSize:10,color:t.sb}},"Fitness")),
+            h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:22,fontWeight:700,color:A.fat}},fit.atl||"—"),h("div",{style:{fontSize:10,color:t.sb}},"Fatiga")),
+            h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:22,fontWeight:700,color:(fit.tsb||0)>=0?A.bat:A.hr}},(fit.tsb>0?"+":"")+(fit.tsb||"—")),h("div",{style:{fontSize:10,color:t.sb}},"Forma"))
+          ),
+          data.fitness?.timeline?.length>0&&h(ResponsiveContainer,{width:"100%",height:120},
+            h(LineChart,{data:data.fitness.timeline,margin:{top:5,right:5,left:-25,bottom:0}},
+              h(XAxis,{dataKey:"date",hide:true}),h(YAxis,{hide:true,domain:[-30,70]}),h(Tooltip,{contentStyle:t.tip}),
+              h(Line,{type:"monotone",dataKey:"ctl",stroke:A.fit,strokeWidth:2,dot:false,name:"Fitness"}),
+              h(Line,{type:"monotone",dataKey:"atl",stroke:A.fat,strokeWidth:2,dot:false,name:"Fatiga"}),
+              h(Line,{type:"monotone",dataKey:"tsb",stroke:A.bat,strokeWidth:1.5,dot:false,name:"Forma"})
+            )
+          ),
+          h("div",{style:{fontSize:11,color:t.sb,textAlign:"center"}},(fit.emoji||"")+" "+(fit.advice||""))
+        ),
+        races.length>0&&h(Card,{title:"Predicción de Carreras",accent:A.vo2,t,style:{marginBottom:14}},
+          h("div",{style:{fontSize:11,color:t.sb,marginBottom:4}},"VO₂ Max "+vo2+" ml/kg/min"),
+          races.map((r,i)=>h("div",{key:i,style:{display:"flex",alignItems:"center",padding:"8px 0",borderBottom:i<races.length-1?"1px solid "+t.bd:"none"}},
+            h("span",{style:{width:55,fontSize:13,fontWeight:700,color:t.tx}},r.distance),
+            h("div",{style:{flex:1,marginRight:8}},h("div",{style:{height:6,background:t.ph,borderRadius:3,overflow:"hidden"}},h("div",{style:{width:Math.min(100,r.km/42.195*100)+"%",height:"100%",background:"linear-gradient(90deg,"+A.vo2+","+A.fit+")",borderRadius:3}}))),
+            h("span",{style:{width:65,fontSize:14,fontWeight:700,color:t.tx,textAlign:"right"}},r.time),
+            h("span",{style:{width:55,fontSize:10,color:t.sb,textAlign:"right"}},r.pace)
+          ))
+        ),
+        h(Card,{title:"Training Readiness",accent:(rd.score||0)>=70?A.bat:A.stress,t,style:{marginBottom:14}},
+          h("div",{style:{textAlign:"center",marginBottom:8}},
+            h(Ring,{value:rd.score||0,max:100,size:100,stroke:9,color:(rd.score||0)>=70?A.bat:A.stress},
+              h("span",{style:{fontSize:28,fontWeight:700,color:t.tx}},rd.score||0),
+              h("span",{style:{fontSize:9,color:t.sb}},"/ 100")
+            )
+          ),
+          rd.breakdown&&Object.entries(rd.breakdown).map(([k,v],i)=>
+            h("div",{key:i,style:{display:"flex",alignItems:"center",gap:8,marginBottom:4}},
+              h("span",{style:{width:85,fontSize:11,fontWeight:600,color:t.tx}},k==="sleep"?"Sueño":k==="hrv"?"HRV":k==="body_battery"?"Body Battery":"Carga"),
+              h("div",{style:{flex:1,height:8,background:t.ph,borderRadius:4,overflow:"hidden"}},h("div",{style:{width:(v.value||0)+"%",height:"100%",background:[A.sleep,A.fit,A.bat,A.fat][i],borderRadius:4}})),
+              h("span",{style:{width:28,fontSize:11,fontWeight:700,color:t.tx,textAlign:"right"}},v.value||0)
+            )
+          )
+        ),
+        h(Card,{title:"Volumen — 3 semanas",t},
+          h("div",{style:{display:"flex",justifyContent:"space-around"}},
+            h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:20,fontWeight:700,color:t.tx}},totalKm.toFixed(0)),h("div",{style:{fontSize:10,color:t.sb}},"km")),
+            h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:20,fontWeight:700,color:t.tx}},totalElev.toLocaleString()),h("div",{style:{fontSize:10,color:t.sb}},"m desnivel")),
+            h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:20,fontWeight:700,color:t.tx}},acts.length),h("div",{style:{fontSize:10,color:t.sb}},"actividades"))
+          )
+        )
+      ),
+
+      // === ACTIVIDADES ===
+      tab==="actividades"&&h(React.Fragment,null,
+        h("div",{style:{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}},
+          ["Todas","Run","Ride","Hike"].map(f=>h("button",{key:f,onClick:()=>setFlt(f),style:{padding:"5px 14px",borderRadius:20,fontSize:11,fontWeight:600,border:"none",cursor:"pointer",background:flt===f?(f==="Todas"?t.tx:SC[f]):(f==="Todas"?t.ph:(SC[f]||"#666")+"15"),color:flt===f?"#fff":(f==="Todas"?t.sb:SC[f]||"#666")}},f==="Todas"?"Todas":f==="Run"?"🏃 Correr":f==="Ride"?"🚴 Bici":"⛰️ Senderismo"))
+        ),
+        filtered.map((a,i)=>
+          h("div",{key:i,onClick:()=>setSel(a),style:{background:t.cd,borderRadius:12,padding:"14px 16px",marginBottom:10,border:"1px solid "+t.bd,borderLeft:"3px solid "+(SC[a.sport]||"#666"),cursor:"pointer"}},
+            h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"start",marginBottom:8}},
+              h("div",null,
+                h("div",{style:{fontSize:14,fontWeight:700,color:t.tx}},(a.icon||SI[a.sport]||"🏋️")+" "+a.name),
+                h("div",{style:{fontSize:11,color:t.sb,marginTop:2}},a.date_formatted||a.date)
+              ),
+              h("div",{style:{display:"flex",alignItems:"center",gap:6}},
+                (a.effort||0)>0&&h("div",{style:{padding:"3px 10px",borderRadius:12,fontSize:11,fontWeight:700,background:(a.effort||0)>100?t.bR.b:(a.effort||0)>50?t.bY.b:t.bG.b,color:(a.effort||0)>100?t.bR.f:(a.effort||0)>50?t.bY.f:t.bG.f}},"RE "+a.effort),
+                h("span",{style:{fontSize:18,color:t.mt}},"›")
+              )
+            ),
+            h("div",{style:{display:"flex",gap:16,flexWrap:"wrap"}},
+              [{l:"Distancia",v:a.distance+" km"},{l:"Tiempo",v:a.time},{l:"Desnivel",v:"↑"+a.elevation+"m"}].map((s,j)=>h("div",{key:j},h("div",{style:{fontSize:13,fontWeight:700,color:t.tx}},s.v),h("div",{style:{fontSize:10,color:t.sb}},s.l))),
+              a.pace&&h("div",null,h("div",{style:{fontSize:13,fontWeight:700,color:t.tx}},a.pace+"/km"),h("div",{style:{fontSize:10,color:t.sb}},"Ritmo")),
+              a.avg_speed&&h("div",null,h("div",{style:{fontSize:13,fontWeight:700,color:t.tx}},a.avg_speed),h("div",{style:{fontSize:10,color:t.sb}},"Vel."))
+            )
+          )
+        )
+      )
+    ),
+
+    // Detail modal
+    sel&&h(Detail,{a:sel,onClose:()=>setSel(null),t}),
+
+    // Footer
+    h("div",{style:{textAlign:"center",padding:"0 0 20px",fontSize:10,color:t.mt}},"Garmin + Strava · "+(data.profile?.name||"Mi Salud"))
+  );
+}
+
+ReactDOM.render(h(App),document.getElementById("root"));
+</script>
+</body>
+</html>

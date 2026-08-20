@@ -4,21 +4,15 @@
     { "src": "api/sync-garmin.py", "use": "@vercel/python" },
     { "src": "api/sync-strava.py", "use": "@vercel/python" },
     { "src": "api/calculate.py", "use": "@vercel/python" },
-    { "src": "api/activity.py", "use": "@vercel/python" }
+    { "src": "api/activity.py", "use": "@vercel/python" },
+    { "src": "public/**", "use": "@vercel/static" }
   ],
   "routes": [
     { "src": "/api/sync-garmin", "dest": "/api/sync-garmin.py" },
     { "src": "/api/sync-strava", "dest": "/api/sync-strava.py" },
     { "src": "/api/calculate", "dest": "/api/calculate.py" },
     { "src": "/api/dashboard", "dest": "/api/dashboard.py" },
-    { "src": "/api/activity(.*)", "dest": "/api/activity.py" }
-  ],
-  "headers": [
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" }
-      ]
-    }
+    { "src": "/api/activity(.*)", "dest": "/api/activity.py" },
+    { "src": "/(.*)", "dest": "/public/$1" }
   ]
 }
