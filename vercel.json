@@ -1,9 +1,6 @@
 {
-  "buildCommand": "",
-  "outputDirectory": "public",
   "functions": {
     "api/**/*.py": {
-      "runtime": "@vercel/python",
       "maxDuration": 60
     }
   },
