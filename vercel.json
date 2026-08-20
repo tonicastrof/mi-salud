@@ -6,6 +6,13 @@
     { "src": "api/calculate.py", "use": "@vercel/python" },
     { "src": "api/activity.py", "use": "@vercel/python" }
   ],
+  "routes": [
+    { "src": "/api/sync-garmin", "dest": "/api/sync-garmin.py" },
+    { "src": "/api/sync-strava", "dest": "/api/sync-strava.py" },
+    { "src": "/api/calculate", "dest": "/api/calculate.py" },
+    { "src": "/api/dashboard", "dest": "/api/dashboard.py" },
+    { "src": "/api/activity(.*)", "dest": "/api/activity.py" }
+  ],
   "headers": [
     {
       "source": "/api/(.*)",
