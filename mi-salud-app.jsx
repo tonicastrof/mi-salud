@@ -7,8 +7,7 @@ import {
 /* ═══════════════════════════════════════════
    CONFIG — cambia esta URL por tu deploy
    ═══════════════════════════════════════════ */
-const API_URL = "https://mi-salud-nine.vercel.app/"; // ← pon aquí tu URL de Vercel, ej: "https://mi-salud.vercel.app"
-// Si está vacío, usa datos demo. Cuando despliegues, pon tu URL real.
+const API_URL = "https://mi-salud-nine.vercel.app";
 
 /* ═══════════════════════════════════════════
    THEME SYSTEM
