@@ -1,6 +1,10 @@
 {
   "builds": [
-    { "src": "api/*.py", "use": "@vercel/python" }
+    { "src": "api/dashboard.py", "use": "@vercel/python" },
+    { "src": "api/sync-garmin.py", "use": "@vercel/python" },
+    { "src": "api/sync-strava.py", "use": "@vercel/python" },
+    { "src": "api/calculate.py", "use": "@vercel/python" },
+    { "src": "api/activity.py", "use": "@vercel/python" }
   ],
   "headers": [
     {
