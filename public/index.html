@@ -91,7 +91,7 @@ function App(){
   const bbD=(src.body_battery||[]).map(x=>({h:x.time,v:x.battery}));
   const resp=src.respiration||{};
   // BB current = last point of timeline, BB max = daily high
-  const bbCurrent=bbD.length>0?bbD[bbD.length-1].v:(d.body_battery_high||0);
+  const bbCurrent=d.body_battery_current||d.body_battery_high||0;
   const bbMax=d.body_battery_high||bbCurrent;
   // Today-only data
   const acts=data.activities||[];const rd=data.readiness||{};const fit=data.fitness?.current||{};

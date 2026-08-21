@@ -94,6 +94,7 @@ class GarminClient:
                 "max_stress": _safe(s.get("maxStressLevel")),
                 "body_battery_high": _safe(s.get("bodyBatteryHighestValue")),
                 "body_battery_low": _safe(s.get("bodyBatteryLowestValue")),
+                "body_battery_current": _safe(s.get("bodyBatteryMostRecentValue")),
                 "avg_spo2": _safe(s.get("averageSpo2")),
                 "lowest_spo2": _safe(s.get("lowestSpo2")),
                 "avg_respiration": _safe(s.get("averageRespirationValue")),
