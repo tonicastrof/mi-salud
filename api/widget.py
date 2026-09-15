@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 import json
 from http.server import BaseHTTPRequestHandler
 from _lib.cache import load
+from _lib.metrics import current_body_battery
 
 
 class handler(BaseHTTPRequestHandler):
@@ -25,12 +26,7 @@ class handler(BaseHTTPRequestHandler):
         fitness = (m.get("fitness") or {}).get("current") or {}
         readiness = m.get("readiness") or {}
 
-        # Body Battery: el resumen diario primero, y si no el último punto de la curva
-        battery = daily.get("body_battery_current") or 0
-        if not battery:
-            timeline = g.get("body_battery") or []
-            if timeline:
-                battery = timeline[-1].get("battery") or 0
+        battery = current_body_battery(g)
 
         activities = sorted(
             s.get("activities") or [],

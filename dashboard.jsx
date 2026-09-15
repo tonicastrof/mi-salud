@@ -178,8 +178,11 @@ export default function Dashboard(){
   const hrHourly = (data.heart_rate?.hourly || []).map(h=>({h:h.hour,hr:h.hr}));
   const bbData = (data.body_battery || []).map(b=>({h:b.time,v:b.battery}));
   const filtered = filter==="Todas"?acts:acts.filter(a=>a.sport===filter);
-  const totalKm = acts.reduce((s,a)=>s+(a.distance||0),0);
-  const totalElev = acts.reduce((s,a)=>s+(a.elevation||0),0);
+  // Volumen de las últimas 3 semanas — no de todo el histórico cacheado
+  const dCut = new Date(); dCut.setDate(dCut.getDate()-21);
+  const cut21 = dCut.getFullYear()+"-"+String(dCut.getMonth()+1).padStart(2,"0")+"-"+String(dCut.getDate()).padStart(2,"0");
+  const acts21 = acts.filter(a=>(a.date||"")>=cut21);
+  const vol21 = {km:acts21.reduce((s,a)=>s+(a.distance||0),0),elev:acts21.reduce((s,a)=>s+(a.elevation||0),0),n:acts21.length};
 
   /* ─── LOAD DATA FROM API ─── */
   const loadDashboard = useCallback(async()=>{
@@ -410,9 +413,9 @@ export default function Dashboard(){
 
           <Card title="Volumen — 3 semanas" t={t}>
             <div style={{display:"flex",justifyContent:"space-around"}}>
-              <div style={{textAlign:"center"}}><div style={{fontSize:20,fontWeight:700,color:t.text}}>{totalKm.toFixed(0)}</div><div style={{fontSize:10,color:t.sub}}>km</div></div>
-              <div style={{textAlign:"center"}}><div style={{fontSize:20,fontWeight:700,color:t.text}}>{totalElev.toLocaleString()}</div><div style={{fontSize:10,color:t.sub}}>m desnivel</div></div>
-              <div style={{textAlign:"center"}}><div style={{fontSize:20,fontWeight:700,color:t.text}}>{acts.length}</div><div style={{fontSize:10,color:t.sub}}>actividades</div></div>
+              <div style={{textAlign:"center"}}><div style={{fontSize:20,fontWeight:700,color:t.text}}>{vol21.km.toFixed(0)}</div><div style={{fontSize:10,color:t.sub}}>km</div></div>
+              <div style={{textAlign:"center"}}><div style={{fontSize:20,fontWeight:700,color:t.text}}>{Math.round(vol21.elev).toLocaleString()}</div><div style={{fontSize:10,color:t.sub}}>m desnivel</div></div>
+              <div style={{textAlign:"center"}}><div style={{fontSize:20,fontWeight:700,color:t.text}}>{vol21.n}</div><div style={{fontSize:10,color:t.sub}}>actividades</div></div>
             </div>
           </Card>
         </>}

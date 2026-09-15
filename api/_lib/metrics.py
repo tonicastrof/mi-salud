@@ -7,7 +7,19 @@ import math
 from datetime import datetime, timedelta
 
 
-def calculate_fitness_fatigue_form(activities: list, days: int = 42) -> dict:
+def current_body_battery(garmin_data: dict) -> int:
+    """Body Battery de ahora mismo: el resumen diario y, si no, el último punto
+    de la curva del día. Nunca el máximo, que al despertarte es casi siempre 100."""
+    daily = garmin_data.get("daily") or {}
+    value = daily.get("body_battery_current") or 0
+    if not value:
+        timeline = garmin_data.get("body_battery") or []
+        if timeline:
+            value = timeline[-1].get("battery") or 0
+    return int(value or 0)
+
+
+def calculate_fitness_fatigue_form(activities: list, max_history_days: int = 400) -> dict:
     """
     Calcula CTL (Fitness), ATL (Fatiga), TSB (Forma) usando
     los valores de Relative Effort (suffer_score) de Strava.
@@ -15,13 +27,18 @@ def calculate_fitness_fatigue_form(activities: list, days: int = 42) -> dict:
     CTL = media exponencial ponderada de 42 días
     ATL = media exponencial ponderada de 7 días
     TSB = CTL - ATL
+
+    La simulación arranca en la actividad más antigua disponible (con tope de
+    max_history_days) y siembra ambas medias con la carga media de las dos
+    primeras semanas. Antes arrancaba 56 días atrás con un CTL fijo de 20: como
+    el CTL tarda ~42 días en olvidar de dónde parte, ese 20 seguía pesando un
+    26% en el valor final, infravaloraba el Fitness y hundía la Forma.
     """
     if not activities:
         return {"timeline": [], "current": {"ctl": 0, "atl": 0, "tsb": 0}}
 
     # Crear mapa de carga diaria
     today = datetime.now().date()
-    start_date = today - timedelta(days=days + 14)
 
     daily_load = {}
     for a in activities:
@@ -29,12 +46,27 @@ def calculate_fitness_fatigue_form(activities: list, days: int = 42) -> dict:
             date = datetime.fromisoformat(a["date"]).date()
         except (ValueError, KeyError):
             continue
+        if date > today:
+            continue
         effort = a.get("effort", 0) or 0
         daily_load[date] = daily_load.get(date, 0) + effort
 
+    if not daily_load:
+        return {"timeline": [], "current": {"ctl": 0, "atl": 0, "tsb": 0}}
+
+    start_date = max(min(daily_load), today - timedelta(days=max_history_days))
+    history_days = (today - start_date).days + 1
+
+    # Semilla: carga media diaria de las dos primeras semanas que conocemos.
+    # Representa el entrenamiento que ya arrastrabas antes de los datos.
+    seed_days = min(14, history_days)
+    seed = sum(
+        daily_load.get(start_date + timedelta(days=i), 0) for i in range(seed_days)
+    ) / seed_days
+
     # Calcular CTL/ATL/TSB día a día
-    ctl = 20.0  # Valor inicial estimado
-    atl = 20.0
+    ctl = float(seed)
+    atl = float(seed)
     timeline = []
 
     current_date = start_date
@@ -87,6 +119,10 @@ def calculate_fitness_fatigue_form(activities: list, days: int = 42) -> dict:
             "status": status,
             "emoji": emoji,
             "advice": advice,
+            # Con menos de 42 días de historial el CTL aún no ha convergido:
+            # el Fitness (y por tanto la Forma) hay que cogerlos con pinzas.
+            "history_days": history_days,
+            "warmup": history_days < 42,
         },
     }
 
@@ -357,7 +393,9 @@ def calculate_all(garmin_data: dict, strava_data: dict) -> dict:
     readiness = calculate_training_readiness(
         sleep_score=sleep.get("score", 70),
         hrv=hrv.get("last_night_avg", 60),
-        body_battery=daily.get("body_battery_high", 70),
+        # Body Battery de ahora, no el máximo del día: el máximo es ~100 nada
+        # más levantarte y dejaba ese 25% del score clavado en el tope.
+        body_battery=current_body_battery(garmin_data) or daily.get("body_battery_high", 70),
         atl=fitness["current"]["atl"],
         resting_hr=daily.get("resting_hr", 0),
         resting_hr_baseline=52,

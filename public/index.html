@@ -483,8 +483,11 @@ function App(){
   const stW=data.steps_week||[];const hrvW=(data.hrv_week||[]).map(x=>({d:x.d,hrv:x.hrv,rhr:x.rhr}));
   const slW=data.sleep_week||[];const stressW=data.stress_week||[];const bbW=data.body_battery_week||[];
   const filtered=flt==="Todas"?acts:acts.filter(a=>a.sport===flt);
-  const totalKm=acts.reduce((s,a)=>s+(a.distance||0),0);
-  const totalElev=acts.reduce((s,a)=>s+(a.elevation||0),0);
+  // Volumen de las últimas 3 semanas — no de todo el histórico cacheado
+  const dCut=new Date();dCut.setDate(dCut.getDate()-21);
+  const cut21=dCut.getFullYear()+"-"+String(dCut.getMonth()+1).padStart(2,"0")+"-"+String(dCut.getDate()).padStart(2,"0");
+  const acts21=acts.filter(a=>(a.date||"")>=cut21);
+  const vol21={km:acts21.reduce((s,a)=>s+(a.distance||0),0),elev:acts21.reduce((s,a)=>s+(a.elevation||0),0),n:acts21.length};
   const an=data.analytics||{};
   const tabs=[{id:"resumen",l:"Resumen"},{id:"rendimiento",l:"Forma"},{id:"actividades",l:"Entrenos"},{id:"coach",l:"🤖 Coach"}];
   const askCoach=(a)=>{setSel(null);setCoachCtx({id:a.id,name:a.name,sport:a.sport});setTab("coach")};
@@ -625,7 +628,8 @@ function App(){
             h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:22,fontWeight:700,color:(fit.tsb||0)>=0?A.bat:A.hr}},(fit.tsb>0?"+":"")+(fit.tsb||"—")),h("div",{style:{fontSize:10,color:t.sb}},"Forma"))
           ),
           data.fitness?.timeline?.length>0&&h(ResponsiveContainer,{width:"100%",height:120},h(LineChart,{data:data.fitness.timeline,margin:{top:5,right:5,left:-25,bottom:0}},h(XAxis,{dataKey:"date",hide:true}),h(YAxis,{hide:true,domain:[-30,70]}),h(Tooltip,{contentStyle:t.tip}),h(Line,{type:"monotone",dataKey:"ctl",stroke:A.fit,strokeWidth:2,dot:false,name:"Fitness"}),h(Line,{type:"monotone",dataKey:"atl",stroke:A.fat,strokeWidth:2,dot:false,name:"Fatiga"}),h(Line,{type:"monotone",dataKey:"tsb",stroke:A.bat,strokeWidth:1.5,dot:false,name:"Forma"}))),
-          h("div",{style:{fontSize:11,color:t.sb,textAlign:"center"}},(fit.emoji||"")+" "+(fit.advice||""))
+          h("div",{style:{fontSize:11,color:t.sb,textAlign:"center"}},(fit.emoji||"")+" "+(fit.advice||"")),
+          fit.warmup&&h("div",{style:{fontSize:10,color:t.mt,textAlign:"center",marginTop:4}},"Solo "+fit.history_days+" días de historial: el Fitness aún se está asentando")
         ),
         races.length>0&&h(Card,{title:"Predicción de Carreras",accent:A.vo2,t,style:{marginBottom:14}},
           h("div",{style:{fontSize:11,color:t.sb,marginBottom:4}},"VO₂ Max "+vo2+" ml/kg/min · FTP "+(data.profile?.ftp||"—")+"W"),
@@ -637,9 +641,9 @@ function App(){
         ),
         h(Card,{title:"Volumen — 3 semanas",t},
           h("div",{style:{display:"flex",justifyContent:"space-around"}},
-            h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:20,fontWeight:700,color:t.tx}},totalKm.toFixed(0)),h("div",{style:{fontSize:10,color:t.sb}},"km")),
-            h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:20,fontWeight:700,color:t.tx}},totalElev.toLocaleString()),h("div",{style:{fontSize:10,color:t.sb}},"m desnivel")),
-            h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:20,fontWeight:700,color:t.tx}},acts.length),h("div",{style:{fontSize:10,color:t.sb}},"actividades"))
+            h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:20,fontWeight:700,color:t.tx}},vol21.km.toFixed(0)),h("div",{style:{fontSize:10,color:t.sb}},"km")),
+            h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:20,fontWeight:700,color:t.tx}},Math.round(vol21.elev).toLocaleString()),h("div",{style:{fontSize:10,color:t.sb}},"m desnivel")),
+            h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:20,fontWeight:700,color:t.tx}},vol21.n),h("div",{style:{fontSize:10,color:t.sb}},"actividades"))
           )
         )
       ),

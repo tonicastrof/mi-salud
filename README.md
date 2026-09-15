@@ -56,6 +56,15 @@ mi-salud-final/
 
 ### Calculadas
 - Fitness/Fatiga/Forma (CTL/ATL/TSB)
+
+  Medias exponenciales del Relative Effort de Strava: CTL a 42 días, ATL a 7,
+  TSB = CTL − ATL. La simulación arranca en la actividad más antigua que haya
+  (tope 400 días) y siembra ambas con la carga media de las dos primeras
+  semanas. Con menos de 42 días de historial el CTL no ha convergido y la app
+  lo avisa bajo la gráfica: el Fitness aún se está asentando.
+
+  Forma negativa = la última semana ha cargado más que tu media de 6 semanas.
+  Es lo normal entrenando; se busca que suba a positivo antes de competir.
 - Ratio Agudo:Crónico (riesgo lesión)
 - Predicción carreras (5K, 10K, media, maratón)
 - Training Readiness (compuesto)
