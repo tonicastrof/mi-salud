@@ -103,14 +103,26 @@ class StravaClient:
 
     # ─── ACTIVIDADES ───
 
-    def get_activities(self, count: int = 30, after: datetime = None) -> list:
-        """Lista de actividades recientes."""
-        params = {"per_page": count}
-        if after:
-            params["after"] = int(after.timestamp())
+    def get_activities(self, count: int = 200, after: datetime = None) -> list:
+        """
+        Lista de actividades recientes. Pagina automáticamente hasta `count`
+        (Strava devuelve como máximo 200 por página).
+        """
+        raw = []
+        page = 1
+        while len(raw) < count:
+            params = {"per_page": min(200, count - len(raw)), "page": page}
+            if after:
+                params["after"] = int(after.timestamp())
+            chunk = self._get("athlete/activities", params)
+            if not isinstance(chunk, list) or not chunk:
+                break
+            raw.extend(chunk)
+            if len(chunk) < params["per_page"]:
+                break
+            page += 1
 
-        raw = self._get("athlete/activities", params)
-        if not isinstance(raw, list):
+        if not raw:
             return []
 
         activities = []
@@ -147,13 +159,22 @@ class StravaClient:
             elif sport in ("Run", "Trail Run", "VirtualRun"):
                 sport_cat = "Run"
 
+            start_local = a.get("start_date_local", "") or ""
+            try:
+                hour = int(start_local[11:13]) if len(start_local) >= 13 else None
+            except ValueError:
+                hour = None
+
             activities.append({
                 "id": a.get("id"),
                 "name": a.get("name", ""),
                 "sport": sport_cat,
                 "sport_type": sport,
-                "date": a.get("start_date_local", "")[:10],
-                "date_formatted": self._format_date(a.get("start_date_local", "")),
+                "date": start_local[:10],
+                "date_formatted": self._format_date(start_local),
+                "start_time": start_local[11:16],
+                "hour": hour,
+                "weekday": self._weekday(start_local),
                 "distance": distance_km,
                 "time": time_fmt,
                 "moving_time_sec": moving_sec,
@@ -168,11 +189,28 @@ class StravaClient:
                 "avg_watts": a.get("average_watts"),
                 "max_watts": a.get("max_watts"),
                 "weighted_watts": a.get("weighted_average_watts"),
+                "avg_cadence": a.get("average_cadence"),
+                "kudos": a.get("kudos_count", 0),
+                "pr_count": a.get("pr_count", 0),
+                "achievements": a.get("achievement_count", 0),
+                "is_race": bool(a.get("workout_type") in (1, 11)),
+                "trainer": bool(a.get("trainer")),
+                "commute": bool(a.get("commute")),
+                "gear_id": a.get("gear_id"),
+                "pace_sec": round(moving_sec / distance_km) if distance_km > 0 else None,
+                "speed_kmh": round(distance_km / (moving_sec / 3600), 1) if moving_sec > 0 and distance_km > 0 else None,
                 "polyline": (a.get("map") or {}).get("summary_polyline", ""),
                 "icon": "🏃" if sport_cat == "Run" else "🚴" if sport_cat == "Ride" else "⛰️",
             })
 
         return activities
+
+    def _weekday(self, iso_date: str):
+        """Día de la semana (0 = lunes) o None."""
+        try:
+            return datetime.fromisoformat(iso_date.replace("Z", "+00:00")).weekday()
+        except (ValueError, AttributeError):
+            return None
 
     def _format_date(self, iso_date: str) -> str:
         if not iso_date:
@@ -228,7 +266,90 @@ class StravaClient:
             "description": data.get("description", ""),
             "device": data.get("device_name", ""),
             "gear": data.get("gear", {}).get("name", "") if data.get("gear") else "",
+            "avg_cadence": data.get("average_cadence"),
+            "max_speed_kmh": round((data.get("max_speed") or 0) * 3.6, 1),
+            "calories": round(data.get("calories") or 0),
+            "avg_temp": data.get("average_temp"),
+            "has_heartrate": bool(data.get("has_heartrate")),
         }
+
+    # ─── STREAMS (series temporales de una actividad) ───
+
+    STREAM_KEYS = ["time", "heartrate", "altitude", "velocity_smooth",
+                   "cadence", "watts", "distance"]
+
+    def get_activity_streams(self, activity_id: int, points: int = 120) -> dict:
+        """
+        Series temporales de una actividad, remuestreadas a ~`points` puntos
+        para que pesen poco y se puedan pintar directamente.
+        """
+        raw = self._get(
+            f"activities/{activity_id}/streams",
+            {"keys": ",".join(self.STREAM_KEYS), "key_by_type": "true"},
+        )
+        if not isinstance(raw, dict) or not raw:
+            return {"points": [], "available": []}
+
+        series = {k: (v or {}).get("data") or [] for k, v in raw.items()
+                  if isinstance(v, dict)}
+        length = max((len(v) for v in series.values()), default=0)
+        if length == 0:
+            return {"points": [], "available": []}
+
+        step = max(1, length // points)
+        idxs = list(range(0, length, step))
+
+        def at(key, i, default=None):
+            data = series.get(key) or []
+            return data[i] if i < len(data) else default
+
+        out = []
+        for i in idxs:
+            secs = at("time", i, i) or 0
+            dist_m = at("distance", i, 0) or 0
+            speed = at("velocity_smooth", i)  # m/s
+            point = {
+                "t": round(secs),
+                "t_label": f"{int(secs) // 60}:{int(secs) % 60:02d}",
+                "km": round(dist_m / 1000, 2),
+                "hr": round(at("heartrate", i) or 0) or None,
+                "alt": round(at("altitude", i) or 0) or None,
+                "cad": round(at("cadence", i) or 0) or None,
+                "watts": round(at("watts", i) or 0) or None,
+            }
+            if speed:
+                point["speed"] = round(speed * 3.6, 1)
+                pace_sec = 1000 / speed
+                # Ignorar paradas y ritmos absurdos (> 15 min/km)
+                point["pace_sec"] = round(pace_sec) if pace_sec < 900 else None
+            out.append(point)
+
+        available = [k for k in ("heartrate", "altitude", "velocity_smooth",
+                                 "cadence", "watts") if series.get(k)]
+        return {"points": out, "available": available}
+
+    def get_activity_zones(self, activity_id: int) -> list:
+        """Tiempo en cada zona de FC/potencia de una actividad."""
+        raw = self._get(f"activities/{activity_id}/zones")
+        if not isinstance(raw, list):
+            return []
+
+        zones = []
+        for z in raw:
+            buckets = z.get("distribution_buckets") or []
+            total = sum(b.get("time", 0) for b in buckets) or 1
+            zones.append({
+                "type": z.get("type"),
+                "buckets": [{
+                    "zone": f"Z{i + 1}",
+                    "min": b.get("min"),
+                    "max": b.get("max"),
+                    "seconds": b.get("time", 0),
+                    "minutes": round(b.get("time", 0) / 60),
+                    "percent": round(b.get("time", 0) * 100 / total),
+                } for i, b in enumerate(buckets)],
+            })
+        return zones
 
     # ─── ZONAS ───
 
@@ -279,7 +400,7 @@ class StravaClient:
         """Recoge todo de Strava."""
         logger.info("Strava: recogiendo snapshot")
 
-        activities = self.get_activities(count=30)
+        activities = self.get_activities(count=200)
         profile = self.get_profile()
 
         return {

@@ -1,20 +1,74 @@
 {
   "builds": [
-    { "src": "api/dashboard.py", "use": "@vercel/python" },
-    { "src": "api/sync-garmin.py", "use": "@vercel/python" },
-    { "src": "api/sync-strava.py", "use": "@vercel/python" },
-    { "src": "api/calculate.py", "use": "@vercel/python" },
-    { "src": "api/activity.py", "use": "@vercel/python" },
-    { "src": "api/day.py", "use": "@vercel/python" },
-    { "src": "public/**", "use": "@vercel/static" }
+    {
+      "src": "api/dashboard.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "api/sync-garmin.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "api/sync-strava.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "api/calculate.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "api/activity.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "api/day.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "api/coach.py",
+      "use": "@vercel/python",
+      "config": {
+        "maxDuration": 60,
+        "memory": 1024
+      }
+    },
+    {
+      "src": "public/**",
+      "use": "@vercel/static"
+    }
   ],
   "routes": [
-    { "src": "/api/sync-garmin", "dest": "/api/sync-garmin.py" },
-    { "src": "/api/sync-strava", "dest": "/api/sync-strava.py" },
-    { "src": "/api/calculate", "dest": "/api/calculate.py" },
-    { "src": "/api/dashboard", "dest": "/api/dashboard.py" },
-    { "src": "/api/activity(.*)", "dest": "/api/activity.py" },
-    { "src": "/api/day(.*)", "dest": "/api/day.py" },
-    { "src": "/(.*)", "dest": "/public/$1" }
+    {
+      "src": "/api/sync-garmin",
+      "dest": "/api/sync-garmin.py"
+    },
+    {
+      "src": "/api/sync-strava",
+      "dest": "/api/sync-strava.py"
+    },
+    {
+      "src": "/api/calculate",
+      "dest": "/api/calculate.py"
+    },
+    {
+      "src": "/api/dashboard",
+      "dest": "/api/dashboard.py"
+    },
+    {
+      "src": "/api/coach",
+      "dest": "/api/coach.py"
+    },
+    {
+      "src": "/api/activity(.*)",
+      "dest": "/api/activity.py"
+    },
+    {
+      "src": "/api/day(.*)",
+      "dest": "/api/day.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/public/$1"
+    }
   ]
 }

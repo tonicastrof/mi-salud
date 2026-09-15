@@ -7,14 +7,18 @@ mi-salud-final/
 ├── api/                      ← Backend (despliega en Vercel)
 │   ├── _lib/
 │   │   ├── garmin_client.py  ← Garmin Connect (CORREGIDO con test real)
-│   │   ├── strava_client.py  ← Strava API
+│   │   ├── strava_client.py  ← Strava API (actividades, streams, zonas)
 │   │   ├── metrics.py        ← CTL/ATL/TSB, ACWR, predicciones, readiness
+│   │   ├── analytics.py      ← Volumen semanal, calendario, récords, tendencias
+│   │   ├── coach_context.py  ← Dossier del atleta para el entrenador IA
 │   │   └── cache.py          ← Upstash Redis
 │   ├── sync-garmin.py        ← Endpoint: descargar datos Garmin
 │   ├── sync-strava.py        ← Endpoint: descargar datos Strava
 │   ├── calculate.py          ← Endpoint: calcular métricas
 │   ├── dashboard.py          ← Endpoint: leer todo (instantáneo)
-│   └── activity.py           ← Endpoint: detalle de actividad
+│   ├── activity.py           ← Endpoint: detalle + streams de una actividad
+│   ├── day.py                ← Endpoint: datos de Garmin de un día concreto
+│   └── coach.py              ← Endpoint: entrenador IA (Claude)
 ├── public/index.html         ← Landing del API
 ├── dashboard.jsx             ← Frontend React (dark/light mode + Sync)
 ├── vercel.json
@@ -43,7 +47,7 @@ mi-salud-final/
 - FC reposo tendencia (8 semanas)
 
 ### Strava
-- Últimas 30 actividades con polylines (mapas GPS)
+- Últimas 200 actividades con polylines (mapas GPS)
 - Splits por km, mejores esfuerzos
 - Perfil: peso, FTP
 - Zonas: FC, potencia, ritmo de carrera
@@ -54,6 +58,45 @@ mi-salud-final/
 - Ratio Agudo:Crónico (riesgo lesión)
 - Predicción carreras (5K, 10K, media, maratón)
 - Training Readiness (compuesto)
+- Volumen por semana y por mes (16 semanas / 12 meses)
+- Calendario de días entrenados (12 semanas), racha y días de descanso
+- Reparto por deporte, por día de la semana y por franja horaria
+- Tendencias de ritmo (carrera) y velocidad (bici)
+- Récords: más larga, más desnivel, sesión más dura, ritmo más rápido
+
+## Pestañas de la app
+
+| Pestaña | Qué tiene |
+|---|---|
+| **Resumen** | Anillos del día, sueño, FC, estrés, Body Battery, tendencias de la semana |
+| **Forma** | CTL/ATL/TSB, predicción de carreras, training readiness, volumen |
+| **Entrenos** | Gráficas de volumen, desnivel, reparto por deporte, cuándo entrenas, tendencia de ritmo/velocidad, récords, **calendario de entrenos** e historial |
+| **Coach** | **Entrenador IA**: conversa con Claude, que ve todos tus datos |
+
+Al tocar una actividad se abre el detalle con el mapa, la **evolución durante la
+sesión** (FC, ritmo, altitud, cadencia, potencia), el **tiempo en cada zona de
+FC**, los parciales por km y los mejores esfuerzos. Desde ahí puedes pulsar
+«Preguntar al entrenador sobre esta sesión» y el chat arranca con esa actividad
+como contexto (parciales y zonas incluidos).
+
+## Entrenador IA (Claude)
+
+`POST /api/coach` monta un dossier con todo lo que hay en caché — perfil, datos
+de Garmin de hoy, tendencias de la semana, CTL/ATL/TSB, ACWR, readiness,
+volumen, calendario, récords y las últimas 40 actividades — y se lo pasa a
+Claude junto con la conversación.
+
+- El dossier va marcado con `cache_control`, así que las preguntas siguientes de
+  la misma conversación reutilizan el contexto cacheado (más rápido y barato).
+- La conversación se guarda en el navegador (`localStorage`), no en el servidor.
+- El modelo se puede cambiar con `COACH_MODEL` (por defecto `claude-opus-5`).
+
+### Proteger el endpoint
+
+La app es privada pero la URL de Vercel es pública. Si defines `APP_SECRET`,
+`/api/coach` exige la cabecera `X-App-Secret`; la app te pedirá esa clave la
+primera vez y la recordará en el navegador. Es lo recomendado para que nadie
+pueda gastar tu cuota de la API.
 
 ## Despliegue — Paso a paso
 
@@ -91,6 +134,9 @@ git push -u origin main
    - `GARMIN_EMAIL` / `GARMIN_PASSWORD`
    - `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` / `STRAVA_REFRESH_TOKEN`
    - `UPSTASH_REDIS_URL` / `UPSTASH_REDIS_TOKEN`
+   - `ANTHROPIC_API_KEY` ← para el entrenador IA ([console.anthropic.com](https://console.anthropic.com) → API Keys)
+   - `APP_SECRET` (opcional pero recomendado) ← contraseña para `/api/coach`
+   - `COACH_MODEL` (opcional) ← por defecto `claude-opus-5`
 3. Deploy
 
 ### 6. Desplegar el Dashboard

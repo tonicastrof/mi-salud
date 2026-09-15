@@ -1,3 +1,7 @@
+"""
+GET /api/activity?id=123            → detalle (splits, mejores esfuerzos)
+GET /api/activity?id=123&full=1     → detalle + series temporales + zonas
+"""
 import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 import json
@@ -7,16 +11,23 @@ from _lib.strava_client import StravaClient
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        qid = parse_qs(urlparse(self.path).query).get("id", [None])[0]
+        q = parse_qs(urlparse(self.path).query)
+        qid = q.get("id", [None])[0]
+        full = q.get("full", ["0"])[0] not in ("0", "", "false")
         if not qid:
             self._r(400, {"error": "Falta parámetro id"})
             return
         try:
             s = StravaClient()
-            if s.connect():
-                self._r(200, s.get_activity_detail(int(qid)))
-            else:
+            if not s.connect():
                 self._r(503, {"error": "Strava no disponible"})
+                return
+            aid = int(qid)
+            result = s.get_activity_detail(aid)
+            if full:
+                result["streams"] = s.get_activity_streams(aid)
+                result["zones"] = s.get_activity_zones(aid)
+            self._r(200, result)
         except Exception as e:
             self._r(500, {"error": str(e)})
 

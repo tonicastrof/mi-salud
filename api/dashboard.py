@@ -3,6 +3,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 import json
 from http.server import BaseHTTPRequestHandler
 from _lib.cache import load
+from _lib.analytics import build_analytics
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -33,6 +34,7 @@ class handler(BaseHTTPRequestHandler):
             "body_battery_week": g.get("body_battery_week", []),
             # Strava
             "activities": s.get("activities", []),
+            "analytics": build_analytics(s.get("activities", [])),
             "gear": s.get("gear", []),
             "zones": s.get("zones", {}),
             # Calculadas
