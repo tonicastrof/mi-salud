@@ -8,7 +8,8 @@ POST /api/coach   → {"messages": [{"role": "user", "content": "..."}],
 
 Variables de entorno:
   ANTHROPIC_API_KEY  (obligatoria)
-  COACH_MODEL        (opcional, por defecto claude-opus-5)
+  COACH_MODEL        (opcional, por defecto claude-sonnet-5;
+                      pon claude-opus-5 si quieres análisis más finos)
   APP_SECRET         (opcional; si está, hay que mandar la cabecera
                       X-App-Secret con el mismo valor)
 """
@@ -21,7 +22,7 @@ from _lib.cache import load
 from _lib.analytics import build_analytics
 from _lib.coach_context import build_context
 
-MODEL = os.getenv("COACH_MODEL", "claude-opus-5")
+MODEL = os.getenv("COACH_MODEL", "claude-sonnet-5")
 MAX_TOKENS = 3000
 MAX_HISTORY = 20          # turnos de conversación que se reenvían
 MAX_QUESTION = 2000       # caracteres por mensaje

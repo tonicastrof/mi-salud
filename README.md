@@ -89,7 +89,12 @@ Claude junto con la conversación.
 - El dossier va marcado con `cache_control`, así que las preguntas siguientes de
   la misma conversación reutilizan el contexto cacheado (más rápido y barato).
 - La conversación se guarda en el navegador (`localStorage`), no en el servidor.
-- El modelo se puede cambiar con `COACH_MODEL` (por defecto `claude-opus-5`).
+- El modelo se puede cambiar con `COACH_MODEL` (por defecto `claude-sonnet-5`,
+  que va sobrado para esto; pon `claude-opus-5` si quieres análisis más finos).
+- Puedes preguntarle en general («¿qué carga llevo esta semana?», «¿qué toca
+  mañana?», «¿voy bien para bajar de 45' en 10K?») o sobre una sesión concreta.
+  El contexto de actividad solo se añade si entras desde el detalle de una, y
+  se quita con el botón «✕ quitar» del chip de arriba.
 
 ### Proteger el endpoint
 
@@ -136,7 +141,7 @@ git push -u origin main
    - `UPSTASH_REDIS_URL` / `UPSTASH_REDIS_TOKEN`
    - `ANTHROPIC_API_KEY` ← para el entrenador IA ([console.anthropic.com](https://console.anthropic.com) → API Keys)
    - `APP_SECRET` (opcional pero recomendado) ← contraseña para `/api/coach`
-   - `COACH_MODEL` (opcional) ← por defecto `claude-opus-5`
+   - `COACH_MODEL` (opcional) ← por defecto `claude-sonnet-5`
 3. Deploy
 
 ### 6. Desplegar el Dashboard
