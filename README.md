@@ -175,7 +175,65 @@ npm run build
 # Despliega en Vercel como segundo proyecto, o en GitHub Pages
 ```
 
-### 7. Instalar como PWA en el móvil
+### 7. Instalar en el móvil
+
+Dos opciones:
+
+**A) PWA (sin compilar nada)**
 1. Abre tu dashboard en Chrome/Safari
 2. Menú → "Añadir a pantalla de inicio"
 3. Se instala como app nativa
+
+**B) APK de Android** — ver la sección siguiente.
+
+## APK de Android
+
+En `android/` hay una app nativa mínima: una WebView a pantalla completa que
+abre el despliegue de Vercel. No duplica el frontend, así que cualquier cambio
+en `public/index.html` aparece en el móvil sin recompilar la APK.
+
+Qué añade sobre la PWA:
+
+- Icono y entrada propia en el cajón de aplicaciones, sin barra del navegador.
+- Botón atrás del móvil = atrás en la app (cierra modales, vuelve de pestañas).
+- Puente de portapapeles nativo: el botón «Copiar informe» del Coach funciona
+  aunque la WebView no exponga la API asíncrona de portapapeles.
+- La barra de estado se tiñe del color de fondo de la web, así que sigue al
+  modo claro/oscuro de la app.
+- Pantalla de error propia si no hay red, con **Reintentar** y **Cambiar URL**
+  (por si cambias de despliegue: la URL nueva se guarda en el móvil).
+
+### Compilarla
+
+La compila GitHub Actions — no hace falta Android Studio.
+
+1. Ve a **Actions → Compilar APK** en el repo.
+2. La APK se genera sola en cada push que toque `android/`, y también a mano
+   con **Run workflow** (ahí puedes escribir otra URL de despliegue).
+3. Cuando acabe, el `.apk` queda en dos sitios: como *artifact* del run y como
+   **release** (`apk-v1.0.N`), que es la cómoda para el móvil.
+
+### Instalarla
+
+1. Abre la release desde el móvil y descarga el `.apk`.
+2. Android pedirá permiso para instalar desde orígenes desconocidos → acéptalo.
+3. Instala. Las siguientes versiones se instalan encima sin desinstalar nada,
+   porque todas las compilaciones usan la misma clave de firma.
+
+### Cambiar la URL por defecto
+
+Por defecto apunta a `https://mi-salud-nine.vercel.app`. Para otra:
+
+- puntual: **Run workflow** → campo *URL del despliegue*;
+- permanente: cambia `appUrl` en `android/app/build.gradle`;
+- desde el móvil: pantalla de error → **Cambiar URL**.
+
+### Compilar en local (opcional)
+
+Con el SDK de Android instalado:
+
+```bash
+cd android
+./gradlew assembleRelease -PappUrl=https://mi-salud-nine.vercel.app
+# app/build/outputs/apk/release/app-release.apk
+```

@@ -1,0 +1,41 @@
+plugins {
+    id 'com.android.application'
+}
+
+// URL del despliegue (Vercel). Se puede cambiar al compilar:
+//   ./gradlew assembleRelease -PappUrl=https://mi-proyecto.vercel.app
+def appUrl = (project.findProperty('appUrl') ?: 'https://mi-salud-nine.vercel.app').toString().replaceAll('/+$', '')
+def vCode = (project.findProperty('versionCode') ?: '1') as Integer
+def vName = (project.findProperty('versionName') ?: '1.0').toString()
+
+android {
+    namespace 'app.misalud'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "app.misalud"
+        minSdk 26
+        targetSdk 35
+        versionCode vCode
+        versionName vName
+        buildConfigField "String", "APP_URL", "\"${appUrl}\""
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // Firmada con la clave de depuración: suficiente para instalar a mano
+            // en el móvil (no va a Google Play).
+            signingConfig signingConfigs.debug
+        }
+    }
+}
