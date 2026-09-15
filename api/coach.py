@@ -1,13 +1,16 @@
 """
 Entrenador IA — conversa con Claude usando todos tus datos.
 
-GET  /api/coach   → estado (¿está configurado?) + preguntas sugeridas
+GET  /api/coach              → estado + preguntas sugeridas
+GET  /api/coach?dossier=1    → informe completo listo para pegar en la
+                               app de Claude (no gasta API)
 POST /api/coach   → {"messages": [{"role": "user", "content": "..."}],
                      "activity_id": 123 (opcional)}
                   ← {"reply": "...", "usage": {...}}
 
 Variables de entorno:
-  ANTHROPIC_API_KEY  (obligatoria)
+  ANTHROPIC_API_KEY  (solo para el chat dentro de la app; el informe para
+                      pegar en Claude funciona sin ella)
   COACH_MODEL        (opcional, por defecto claude-sonnet-5;
                       pon claude-opus-5 si quieres análisis más finos)
   APP_SECRET         (opcional; si está, hay que mandar la cabecera
@@ -17,6 +20,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 import json
 from http.server import BaseHTTPRequestHandler
+from urllib.parse import urlparse, parse_qs
 
 from _lib.cache import load
 from _lib.analytics import build_analytics
@@ -27,29 +31,43 @@ MAX_TOKENS = 3000
 MAX_HISTORY = 20          # turnos de conversación que se reenvían
 MAX_QUESTION = 2000       # caracteres por mensaje
 
-SYSTEM = """Eres el entrenador personal de este atleta dentro de su app privada "Mi Salud".
-Hablas español de España, tuteas y vas al grano como lo haría un buen entrenador por WhatsApp.
+# Las reglas de entrenador son las mismas tanto si responde la API como si
+# pegas el informe en la app de Claude; solo cambia la frase de presentación.
+ROLE_APP = ('Eres el entrenador personal de este atleta dentro de su app privada '
+            '"Mi Salud".')
+ROLE_PEGAR = ("Quiero que hagas de entrenador personal mío. Te paso abajo el informe "
+              "que genera mi app con todos mis datos de Garmin y Strava.\n\nInstrucciones:")
 
-Tienes delante su dossier: datos de Garmin (sueño, HRV, FC en reposo, Body Battery, estrés),
-sus actividades de Strava y métricas calculadas (CTL/ATL/TSB, ratio agudo:crónico, readiness,
-predicciones de carrera). Úsalo siempre: cita cifras y fechas concretas de sus datos en vez de
-dar consejos genéricos.
+REGLAS = """Hablas español de España, tuteas y vas al grano como lo haría un buen entrenador
+por WhatsApp.
+
+Tienes delante el dossier del atleta: datos de Garmin (sueño, HRV, FC en reposo, Body Battery,
+estrés), actividades de Strava y métricas calculadas (CTL/ATL/TSB, ratio agudo:crónico,
+readiness, predicciones de carrera). Úsalo siempre: cita cifras y fechas concretas de esos
+datos en vez de dar consejos genéricos.
 
 Cómo respondes:
-- Directo y breve por defecto: 3-6 frases o una lista corta. Si te pide un plan o un análisis
+- Directo y breve por defecto: 3-6 frases o una lista corta. Si te piden un plan o un análisis
   a fondo, entonces sí desarróllalo.
-- Empieza por la respuesta, no por un resumen de lo que te ha preguntado.
+- Empieza por la respuesta, no por un resumen de la pregunta.
 - Apóyate en los números ("llevas 58 km esta semana frente a 41 de media") y explica qué implican.
 - Cuando propongas entrenamientos, concreta: tipo de sesión, distancia o duración, ritmo o zona
-  de FC, y qué día encaja mejor según su calendario y su carga.
+  de FC, y qué día encaja mejor según el calendario y la carga.
 - Si los datos no dan para responder (falta sincronizar, no hay FC en esa sesión, etc.), dilo
   claramente en una frase en vez de inventarte cifras. Nunca te inventes datos que no estén
   en el dossier.
 - Markdown ligero: negritas y listas cortas. Sin encabezados grandes ni tablas enormes.
 
 Límites: eres un entrenador, no un médico. Ante dolor persistente, mareos, dolor en el pecho,
-arritmias o cualquier señal preocupante, recomiéndale ver a un profesional sanitario y no le
-des diagnósticos."""
+arritmias o cualquier señal preocupante, recomienda ver a un profesional sanitario y no des
+diagnósticos."""
+
+SYSTEM = ROLE_APP + "\n" + REGLAS
+
+CIERRE_PEGAR = """---
+
+Empieza con un resumen de 3-4 líneas de cómo voy ahora mismo (carga, frescura y volumen)
+y luego quédate esperando mis preguntas."""
 
 SUGGESTIONS = [
     "¿Cómo he entrenado esta semana?",
@@ -66,6 +84,23 @@ class handler(BaseHTTPRequestHandler):
     # ─── Estado ───
 
     def do_GET(self):
+        q = parse_qs(urlparse(self.path).query)
+
+        # Informe completo para pegarlo en la app de Claude (no gasta API)
+        if q.get("dossier"):
+            if not self._autorizado():
+                self._r(401, {"error": "No autorizado"})
+                return
+            try:
+                texto = "\n\n".join([ROLE_PEGAR + "\n" + REGLAS,
+                                      self._build_dossier(q.get("activity_id", [None])[0]),
+                                      CIERRE_PEGAR])
+            except Exception as e:
+                self._r(500, {"error": f"No se pudo leer tus datos: {e}"})
+                return
+            self._r(200, {"dossier": texto, "chars": len(texto)})
+            return
+
         self._r(200, {
             "enabled": bool(os.getenv("ANTHROPIC_API_KEY")),
             "model": MODEL,
@@ -80,9 +115,12 @@ class handler(BaseHTTPRequestHandler):
 
     # ─── Conversación ───
 
-    def do_POST(self):
+    def _autorizado(self):
         secret = os.getenv("APP_SECRET")
-        if secret and self.headers.get("X-App-Secret") != secret:
+        return not secret or self.headers.get("X-App-Secret") == secret
+
+    def do_POST(self):
+        if not self._autorizado():
             self._r(401, {"error": "No autorizado"})
             return
 

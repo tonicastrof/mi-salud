@@ -315,6 +315,8 @@ function Coach({t,ctx,onClearCtx}){
   const[info,setInfo]=useState(null);
   const[secret,setSecret]=useState(()=>{try{return localStorage.getItem("app_secret")||""}catch(e){return""}});
   const[needSecret,setNeedSecret]=useState(false);
+  const[copia,setCopia]=useState("");      // "", "cargando", "ok", o el texto si falla copiar
+  const[dossier,setDossier]=useState("");
   const end=React.useRef(null);
 
   useEffect(()=>{api("coach").then(setInfo).catch(()=>{})},[]);
@@ -345,15 +347,56 @@ function Coach({t,ctx,onClearCtx}){
     setBusy(false);
   },[msgs,busy,secret,ctx]);
 
+  // Trae el informe completo y lo deja en el portapapeles para pegarlo en Claude
+  const copiar=useCallback(async()=>{
+    setCopia("cargando");setErr("");
+    try{
+      const headers={};if(secret)headers["X-App-Secret"]=secret;
+      const q="coach?dossier=1"+(ctx?"&activity_id="+ctx.id:"");
+      const r=await fetch("/api/"+q,{headers});
+      const j=await r.json();
+      if(!r.ok){if(r.status===401)setNeedSecret(true);setErr(j.error||"Error "+r.status);setCopia("");return}
+      setDossier(j.dossier);
+      try{
+        await navigator.clipboard.writeText(j.dossier);
+        setCopia("ok");setTimeout(()=>setCopia(""),4000);
+      }catch(e){
+        // Sin permiso de portapapeles (o navegador antiguo): lo mostramos para copiar a mano
+        setCopia("manual");
+      }
+    }catch(e){setErr("No se pudo generar el informe");setCopia("")}
+  },[secret,ctx]);
+
   const disabled=info&&info.enabled===false;
   return h("div",{style:{display:"flex",flexDirection:"column",minHeight:"64vh"}},
     ctx&&h("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,background:t.cd,border:"1px solid "+t.bd,borderLeft:"3px solid "+(SC[ctx.sport]||A.fit),borderRadius:10,padding:"8px 12px",marginBottom:10}},
       h("span",{style:{fontSize:11,color:t.sb}},"Hablando de: ",h("strong",{style:{color:t.tx}},ctx.name)),
       h("button",{onClick:onClearCtx,style:{flex:"0 0 auto",border:"none",background:t.ph,borderRadius:8,padding:"4px 9px",color:t.sb,cursor:"pointer",fontSize:10,fontWeight:600}},"✕ quitar")),
-    disabled&&h("div",{style:{background:t.cd,border:"1px solid "+t.bd,borderRadius:12,padding:"14px 16px",marginBottom:12}},
-      h("div",{style:{fontSize:13,fontWeight:700,color:t.tx,marginBottom:6}},"🔌 Falta conectar Claude"),
-      h("div",{style:{fontSize:12,color:t.sb,lineHeight:1.5}},"Añade la variable de entorno ",h("code",{style:{background:t.ph,padding:"1px 5px",borderRadius:4}},"ANTHROPIC_API_KEY")," en Vercel y vuelve a desplegar.")),
-    msgs.length===0&&h("div",{style:{padding:"18px 0 4px"}},
+    // Copiar el informe y preguntar en la app de Claude que ya pagas
+    h("div",{style:{background:t.cd,border:"1px solid "+t.bd,borderRadius:14,padding:"14px 16px",marginBottom:12}},
+      h("div",{style:{fontSize:13,fontWeight:700,color:t.tx,marginBottom:4}},"📋 Preguntar en la app de Claude"),
+      h("div",{style:{fontSize:12,color:t.sb,lineHeight:1.5,marginBottom:10}},
+        "Copia tu informe completo —Garmin de hoy, carga, calendario, volumen y tus últimas sesiones— y pégalo en Claude. Te responde como entrenador sin gastar API."),
+      h("div",{style:{display:"flex",gap:7}},
+        h("button",{onClick:copiar,disabled:copia==="cargando",style:{flex:1,padding:"11px 0",border:"none",borderRadius:12,cursor:"pointer",fontSize:13,fontWeight:700,
+          background:copia==="ok"?A.bat:"linear-gradient(135deg,#3b82f6,#8b5cf6)",color:"#fff"}},
+          copia==="cargando"?"⏳ Generando...":copia==="ok"?"✓ Copiado":"📋 Copiar informe"),
+        h("a",{href:"https://claude.ai/new",target:"_blank",rel:"noopener",style:{flex:"0 0 auto",padding:"11px 16px",borderRadius:12,textDecoration:"none",fontSize:13,fontWeight:700,
+          background:t.ph,color:t.tx,display:"flex",alignItems:"center"}},"Abrir Claude ↗")),
+      copia==="ok"&&h("div",{style:{fontSize:11,color:A.bat,marginTop:8}},"Pégalo en una conversación nueva de Claude y pregúntale lo que quieras."),
+      copia==="manual"&&h(React.Fragment,null,
+        h("div",{style:{fontSize:11,color:t.sb,margin:"8px 0 5px"}},"Tu navegador no deja copiar solo. Selecciona todo el texto y cópialo a mano:"),
+        h("textarea",{readOnly:true,value:dossier,onFocus:e=>e.target.select(),rows:6,
+          style:{width:"100%",resize:"vertical",padding:10,borderRadius:10,border:"1px solid "+t.bd,background:t.ph,color:t.tx,fontSize:11,fontFamily:"monospace"}})),
+      ctx&&h("div",{style:{fontSize:10,color:t.mt,marginTop:8}},"Incluye también los parciales y zonas de «"+ctx.name+"»"),
+      disabled&&(info.suggestions||[]).length>0&&h("div",{style:{borderTop:"1px solid "+t.bd,marginTop:12,paddingTop:10}},
+        h("div",{style:{fontSize:10,fontWeight:700,color:t.mt,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:7}},"Luego pregúntale, por ejemplo"),
+        h("div",{style:{display:"flex",gap:5,flexWrap:"wrap"}},
+          info.suggestions.map((s,i)=>h("span",{key:i,style:{padding:"5px 10px",borderRadius:20,fontSize:11,background:t.ph,color:t.sb}},s))))),
+    disabled&&h("div",{style:{background:t.cd,border:"1px solid "+t.bd,borderRadius:12,padding:"12px 16px",marginBottom:12}},
+      h("div",{style:{fontSize:12,fontWeight:700,color:t.tx,marginBottom:4}},"💬 Chat dentro de la app"),
+      h("div",{style:{fontSize:11,color:t.sb,lineHeight:1.5}},"Si además quieres chatear aquí sin salir de la app, añade ",h("code",{style:{background:t.ph,padding:"1px 5px",borderRadius:4}},"ANTHROPIC_API_KEY")," en Vercel (se cobra por uso, aparte de tu suscripción).")),
+    msgs.length===0&&!disabled&&h("div",{style:{padding:"18px 0 4px"}},
       h("div",{style:{textAlign:"center"}},
         h("div",{style:{fontSize:34}},"🤖"),
         h("div",{style:{fontSize:15,fontWeight:700,color:t.tx,marginTop:6}},"Tu entrenador"),
@@ -375,7 +418,7 @@ function Coach({t,ctx,onClearCtx}){
         style:{flex:1,padding:"9px 12px",borderRadius:10,border:"1px solid "+t.bd,background:t.cd,color:t.tx,fontSize:12,outline:"none"}}),
       h("button",{onClick:()=>{try{localStorage.setItem("app_secret",secret)}catch(e){}setNeedSecret(false);setErr("")},
         style:{padding:"9px 14px",border:"none",borderRadius:10,background:A.fit,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}},"Guardar")),
-    h("div",{style:{display:"flex",gap:7,position:"sticky",bottom:0,paddingBottom:4,background:t.bg}},
+    !disabled&&h("div",{style:{display:"flex",gap:7,position:"sticky",bottom:0,paddingBottom:4,background:t.bg}},
       h("textarea",{value:input,rows:1,placeholder:"Pregúntale a tu entrenador...",disabled:busy,
         onChange:e=>setInput(e.target.value),
         onKeyDown:e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send(input)}},

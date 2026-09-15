@@ -71,7 +71,7 @@ mi-salud-final/
 | **Resumen** | Anillos del día, sueño, FC, estrés, Body Battery, tendencias de la semana |
 | **Forma** | CTL/ATL/TSB, predicción de carreras, training readiness, volumen |
 | **Entrenos** | Gráficas de volumen, desnivel, reparto por deporte, cuándo entrenas, tendencia de ritmo/velocidad, récords, **calendario de entrenos** e historial |
-| **Coach** | **Entrenador IA**: conversa con Claude, que ve todos tus datos |
+| **Coach** | Copia tu informe para pegarlo en la app de Claude, o chatea aquí mismo si activas la API |
 
 Al tocar una actividad se abre el detalle con el mapa, la **evolución durante la
 sesión** (FC, ritmo, altitud, cadencia, potencia), el **tiempo en cada zona de
@@ -81,6 +81,25 @@ como contexto (parciales y zonas incluidos).
 
 ## Entrenador IA (Claude)
 
+Hay dos formas de usarlo, y no son excluyentes.
+
+### A) Copiar el informe y preguntar en la app de Claude — **gratis**
+
+La pestaña Coach tiene un botón **«Copiar informe»**: genera un texto con las
+instrucciones de entrenador + todo tu dossier y lo deja en el portapapeles.
+Lo pegas en una conversación nueva de la app de Claude (la de tu suscripción) y
+ya te responde como entrenador con tus datos delante.
+
+- `GET /api/coach?dossier=1` es lo que devuelve ese texto. No necesita
+  `ANTHROPIC_API_KEY`, así que funciona sin gastar nada de API.
+- Si entras desde el detalle de una sesión, el informe incluye además sus
+  parciales por km y su tiempo en zonas.
+- Ojo: tu suscripción de claude.ai **no** sirve para llamar a la API desde la
+  app; son productos con facturación separada. Por eso existe esta opción.
+
+### B) Chat dentro de la app — de pago por uso
+
+Si defines `ANTHROPIC_API_KEY`, la pestaña Coach añade un chat completo.
 `POST /api/coach` monta un dossier con todo lo que hay en caché — perfil, datos
 de Garmin de hoy, tendencias de la semana, CTL/ATL/TSB, ACWR, readiness,
 volumen, calendario, récords y las últimas 40 actividades — y se lo pasa a
@@ -99,9 +118,9 @@ Claude junto con la conversación.
 ### Proteger el endpoint
 
 La app es privada pero la URL de Vercel es pública. Si defines `APP_SECRET`,
-`/api/coach` exige la cabecera `X-App-Secret`; la app te pedirá esa clave la
-primera vez y la recordará en el navegador. Es lo recomendado para que nadie
-pueda gastar tu cuota de la API.
+`/api/coach` exige la cabecera `X-App-Secret` tanto para el chat como para el
+informe; la app te pedirá esa clave la primera vez y la recordará en el
+navegador. Protege tu cuota de API y, sobre todo, tus datos de salud.
 
 ## Despliegue — Paso a paso
 
@@ -139,7 +158,7 @@ git push -u origin main
    - `GARMIN_EMAIL` / `GARMIN_PASSWORD`
    - `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` / `STRAVA_REFRESH_TOKEN`
    - `UPSTASH_REDIS_URL` / `UPSTASH_REDIS_TOKEN`
-   - `ANTHROPIC_API_KEY` ← para el entrenador IA ([console.anthropic.com](https://console.anthropic.com) → API Keys)
+   - `ANTHROPIC_API_KEY` ← **solo** si quieres el chat dentro de la app ([console.anthropic.com](https://console.anthropic.com) → API Keys). El botón «Copiar informe» funciona sin ella.
    - `APP_SECRET` (opcional pero recomendado) ← contraseña para `/api/coach`
    - `COACH_MODEL` (opcional) ← por defecto `claude-sonnet-5`
 3. Deploy
