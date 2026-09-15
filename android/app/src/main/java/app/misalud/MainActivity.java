@@ -40,10 +40,8 @@ import android.widget.Toast;
  */
 public class MainActivity extends Activity {
 
-    private static final String PREFS = "mi_salud";
-    private static final String KEY_URL = "base_url";
-    private static final String KEY_BG = "bg_color";
     private static final String BRIDGE = "MiSaludNative";
+    private static final long WIDGET_MAX_AGE_MS = 10 * 60 * 1000;
 
     private FrameLayout root;
     private WebView web;
@@ -56,9 +54,9 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
-        baseUrl = normalize(prefs.getString(KEY_URL, BuildConfig.APP_URL));
-        bgColor = prefs.getInt(KEY_BG, 0xFF0A0A0F);
+        SharedPreferences prefs = Config.prefs(this);
+        baseUrl = Config.baseUrl(this);
+        bgColor = prefs.getInt(Config.KEY_BG, 0xFF0A0A0F);
 
         root = new FrameLayout(this);
         root.setBackgroundColor(bgColor);
@@ -182,7 +180,7 @@ public class MainActivity extends Activity {
                 root.setBackgroundColor(bgColor);
                 web.setBackgroundColor(bgColor);
                 applyBarAppearance(bgColor);
-                getSharedPreferences(PREFS, MODE_PRIVATE).edit().putInt(KEY_BG, bgColor).apply();
+                Config.prefs(MainActivity.this).edit().putInt(Config.KEY_BG, bgColor).apply();
             });
         }
     }
@@ -337,12 +335,12 @@ public class MainActivity extends Activity {
                 .setTitle("URL del despliegue")
                 .setView(input)
                 .setPositiveButton("Guardar", (d, which) -> {
-                    String url = normalize(input.getText().toString());
+                    String url = Config.normalize(input.getText().toString());
                     if (url.isEmpty()) {
                         return;
                     }
                     baseUrl = url;
-                    getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(KEY_URL, url).apply();
+                    Config.prefs(this).edit().putString(Config.KEY_URL, url).apply();
                     hideError();
                     web.loadUrl(baseUrl);
                 })
@@ -381,6 +379,16 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         web.onResume();
+        refreshWidgetIfStale();
+    }
+
+    /** Si el widget enseña datos viejos, aprovecha que abres la app para actualizarlo. */
+    private void refreshWidgetIfStale() {
+        long at = Config.prefs(this).getLong(Config.KEY_SNAPSHOT_AT, 0);
+        if (System.currentTimeMillis() - at < WIDGET_MAX_AGE_MS) {
+            return;
+        }
+        sendBroadcast(new Intent(this, SaludWidget.class).setAction(SaludWidget.ACTION_REFRESH));
     }
 
     @Override
@@ -404,19 +412,5 @@ public class MainActivity extends Activity {
         } catch (ActivityNotFoundException e) {
             Toast.makeText(this, "No hay ninguna app para abrir ese enlace", Toast.LENGTH_SHORT).show();
         }
-    }
-
-    private static String normalize(String url) {
-        String v = url == null ? "" : url.trim();
-        if (v.isEmpty()) {
-            return v;
-        }
-        if (!v.startsWith("http://") && !v.startsWith("https://")) {
-            v = "https://" + v;
-        }
-        while (v.endsWith("/")) {
-            v = v.substring(0, v.length() - 1);
-        }
-        return v;
     }
 }

@@ -16,6 +16,7 @@ mi-salud-final/
 │   ├── sync-strava.py        ← Endpoint: descargar datos Strava
 │   ├── calculate.py          ← Endpoint: calcular métricas
 │   ├── dashboard.py          ← Endpoint: leer todo (instantáneo)
+│   ├── widget.py             ← Endpoint: resumen mínimo para el widget de Android
 │   ├── activity.py           ← Endpoint: detalle + streams de una actividad
 │   ├── day.py                ← Endpoint: datos de Garmin de un día concreto
 │   └── coach.py              ← Endpoint: entrenador IA (Claude)
@@ -202,6 +203,29 @@ Qué añade sobre la PWA:
   modo claro/oscuro de la app.
 - Pantalla de error propia si no hay red, con **Reintentar** y **Cambiar URL**
   (por si cambias de despliegue: la URL nueva se guarda en el móvil).
+- Widget para la pantalla de inicio (ver más abajo).
+
+### Widget en la pantalla de inicio
+
+La APK trae un widget redimensionable (4x2 por defecto) que enseña, sin abrir
+la app: pasos del día con barra de progreso sobre tu objetivo, Body Battery,
+FC en reposo, sueño, readiness y una línea con la forma (fitness y TSB).
+
+- **Para añadirlo**: mantén pulsado el escritorio → Widgets → Mi Salud.
+- **Toca el widget** y se abre la app; **toca el ⟳** y se actualiza al momento.
+- Se refresca solo cada 30 minutos (el mínimo que permite Android) y también
+  cuando abres la app, si lo que enseña tiene más de 10 minutos.
+- Guarda la última respuesta, así que sin cobertura sigue enseñando los últimos
+  datos conocidos con un «sin conexión» en el pie, en vez de quedarse en blanco.
+
+Lee de `GET /api/widget`, un endpoint nuevo que devuelve solo esos números
+(un par de kB). El widget no puede usar `/api/dashboard`: ese devuelve el
+volcado completo con 200 actividades y sus polylines, y no tiene sentido
+bajárselo cada media hora desde la pantalla de inicio.
+
+`/api/widget` no pide `APP_SECRET`, igual que `/api/dashboard` — el widget es
+código nativo y no tiene acceso a la clave que guarda el navegador. Si algún
+día proteges la API entera, este endpoint hay que tenerlo en cuenta.
 
 ### Compilarla
 

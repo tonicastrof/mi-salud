@@ -17,6 +17,10 @@
       "use": "@vercel/python"
     },
     {
+      "src": "api/widget.py",
+      "use": "@vercel/python"
+    },
+    {
       "src": "api/activity.py",
       "use": "@vercel/python"
     },
@@ -53,6 +57,10 @@
     {
       "src": "/api/dashboard",
       "dest": "/api/dashboard.py"
+    },
+    {
+      "src": "/api/widget",
+      "dest": "/api/widget.py"
     },
     {
       "src": "/api/coach",
