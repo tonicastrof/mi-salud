@@ -246,6 +246,64 @@ class GarminClient:
             logger.error(f"hrv: {e}")
             return {}
 
+    def get_training_status(self, date=None):
+        """
+        Estado de entreno de Garmin: VO₂max real del reloj, carga de 7 días
+        y aclimatación. Es lo que se ve en «Estado de entreno» en la app.
+
+        Ojo con la carga: Garmin suma su propia Training Load (basada en EPOC)
+        de los últimos 7 días. No tiene nada que ver con el Relative Effort de
+        Strava que usamos para CTL/ATL/TSB — son escalas distintas y no deben
+        compararse ni mezclarse. Por eso va en su propio bloque.
+        """
+        date = date or self._today()
+        out = {"date": date}
+
+        # VO₂max — el de correr es el que vale para predecir carreras.
+        try:
+            metrics = self.client.get_max_metrics(date)
+            if isinstance(metrics, list) and metrics:
+                metrics = metrics[0]
+            if isinstance(metrics, dict):
+                generic = metrics.get("generic") or {}
+                cycling = metrics.get("cycling") or {}
+                heat = metrics.get("heatAltitudeAcclimation") or {}
+                run_vo2 = generic.get("vo2MaxPreciseValue") or generic.get("vo2MaxValue")
+                bike_vo2 = cycling.get("vo2MaxPreciseValue") or cycling.get("vo2MaxValue")
+                if run_vo2:
+                    out["vo2max_running"] = round(float(run_vo2), 1)
+                if bike_vo2:
+                    out["vo2max_cycling"] = round(float(bike_vo2), 1)
+                if heat.get("heatAcclimationPercentage") is not None:
+                    out["heat_acclimation"] = _safe(heat.get("heatAcclimationPercentage"))
+        except Exception as e:
+            logger.error(f"max_metrics: {e}")
+
+        # Estado de entreno + carga aguda de 7 días
+        try:
+            ts = self.client.get_training_status(date)
+            recent = (ts or {}).get("mostRecentTrainingStatus") or {}
+            latest = recent.get("latestTrainingStatusData") or {}
+            for dev in latest.values():
+                if not isinstance(dev, dict):
+                    continue
+                if dev.get("trainingStatus"):
+                    out["status_code"] = dev.get("trainingStatus")
+                if dev.get("trainingStatusFeedbackPhrase"):
+                    out["status_phrase"] = dev.get("trainingStatusFeedbackPhrase")
+                acute = dev.get("acuteTrainingLoadDTO") or {}
+                load = (acute.get("acwrStatus") and acute) or acute
+                if load.get("dailyAcuteChronicWorkloadRatio") is not None:
+                    out["acwr_garmin"] = round(
+                        float(load["dailyAcuteChronicWorkloadRatio"]), 2)
+                if load.get("acuteTrainingLoad") is not None:
+                    out["load_7d"] = round(float(load["acuteTrainingLoad"]))
+                break
+        except Exception as e:
+            logger.error(f"training_status: {e}")
+
+        return out
+
     def get_spo2(self, date=None):
         date = date or self._today()
         try:
@@ -403,6 +461,7 @@ class GarminClient:
             "stress": self.get_stress(today),
             "body_battery": self.get_body_battery(today),
             "hrv": self.get_hrv(today),
+            "training_status": self.get_training_status(today),
             "spo2": self.get_spo2(today),
             "respiration": self.get_respiration(today),
             # Semanales

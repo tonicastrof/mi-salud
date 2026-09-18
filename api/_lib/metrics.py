@@ -130,12 +130,23 @@ def calculate_fitness_fatigue_form(activities: list, max_history_days: int = 400
 def calculate_acwr(activities: list) -> dict:
     """
     Ratio Agudo:Crónico (Acute:Chronic Workload Ratio).
-    Compara carga de última semana vs media de 4 semanas.
+
+    Trabaja con VENTANAS MÓVILES de 7 días que terminan hoy, no con semanas
+    naturales de lunes a domingo: aguda = hoy-6→hoy, crónica = media de los
+    últimos 28 días. Es lo correcto para el ACWR (siempre 7 días completos),
+    pero NO es el mismo número que la barra de la gráfica «Volumen por
+    semana», que va de lunes a hoy y está a medias hasta el domingo.
+
+    Esa diferencia es la que hacía que la misma carga apareciese como 202 en
+    la gráfica y como 400 en el informe. Ahora la salida dice explícitamente
+    qué ventana cubre cada valor para que no se puedan confundir.
+
     Zona segura: 0.8 — 1.3. Riesgo: > 1.5.
     """
     today = datetime.now().date()
 
-    def week_load(days_back_start, days_back_end):
+    def window_load(days_back_start, days_back_end):
+        """Carga en la ventana [days_back_end, days_back_start) días atrás."""
         total = 0
         for a in activities:
             try:
@@ -147,11 +158,11 @@ def calculate_acwr(activities: list) -> dict:
                 total += a.get("effort", 0) or 0
         return total
 
-    acute = week_load(7, 0)      # Última semana
-    w1 = week_load(7, 0)
-    w2 = week_load(14, 7)
-    w3 = week_load(21, 14)
-    w4 = week_load(28, 21)
+    w1 = window_load(7, 0)       # hoy-6  → hoy
+    w2 = window_load(14, 7)      # hoy-13 → hoy-7
+    w3 = window_load(21, 14)
+    w4 = window_load(28, 21)
+    acute = w1
     chronic = (w1 + w2 + w3 + w4) / 4
 
     ratio = round(acute / chronic, 2) if chronic > 0 else 0
@@ -173,14 +184,30 @@ def calculate_acwr(activities: list) -> dict:
         emoji = "📉"
         color = "blue"
 
+    def _range(days_back_start, days_back_end):
+        ini = today - timedelta(days=days_back_start - 1)
+        fin = today - timedelta(days=days_back_end)
+        return f"{ini.isoformat()}→{fin.isoformat()}"
+
     return {
         "ratio": ratio,
         "acute_load": acute,
+        "acute_days": 7,
         "chronic_load": round(chronic),
+        "chronic_days": 28,
         "risk": risk,
         "emoji": emoji,
         "color": color,
+        # Ventanas móviles de 7 días, de la más antigua a la más reciente.
+        # Ojo: NO son semanas de lunes a domingo (ver docstring).
         "weekly_loads": [w4, w3, w2, w1],
+        "window": "rolling_7d",
+        "rolling_loads": [
+            {"load": w4, "label": "día -28 a -22", "range": _range(28, 21)},
+            {"load": w3, "label": "día -21 a -15", "range": _range(21, 14)},
+            {"load": w2, "label": "día -14 a -8", "range": _range(14, 7)},
+            {"load": w1, "label": "últimos 7 días", "range": _range(7, 0)},
+        ],
     }
 
 
@@ -320,8 +347,9 @@ def calculate_training_readiness(
 
 
 def calculate_training_summary(activities: list, days: int = 21) -> dict:
-    """Resumen de entrenamiento de los últimos N días."""
-    cutoff = (datetime.now() - timedelta(days=days)).date()
+    """Resumen de entrenamiento de los últimos N días (hoy incluido)."""
+    # days-1: con days=21 la ventana es hoy-20→hoy, 21 días. Antes cogía 22.
+    cutoff = datetime.now().date() - timedelta(days=days - 1)
 
     recent = []
     for a in activities:
@@ -329,7 +357,7 @@ def calculate_training_summary(activities: list, days: int = 21) -> dict:
             date = datetime.fromisoformat(a["date"]).date()
         except (ValueError, KeyError):
             continue
-        if date >= cutoff:
+        if cutoff <= date <= datetime.now().date():
             recent.append(a)
 
     total_km = sum(a.get("distance", 0) for a in recent)
@@ -361,13 +389,21 @@ def calculate_all(garmin_data: dict, strava_data: dict) -> dict:
     sleep = garmin_data.get("sleep", {})
     hrv = garmin_data.get("hrv", {})
 
-    # VO2max — usar FTP si está disponible, o estimar
-    vo2max = None
+    # VO₂max — el del reloj manda. Garmin lo mide corriendo; la fórmula del
+    # FTP es de ciclismo y daba un valor mucho más bajo (52 frente a 71), lo
+    # que hundía todas las predicciones de carrera, que son de correr.
+    training_status = garmin_data.get("training_status", {}) or {}
     ftp = profile.get("ftp")
     weight = profile.get("weight")
+
+    vo2max_ftp = None
     if ftp and weight:
         # VO2max ≈ (FTP / weight) * 10.8 + 7 (fórmula aproximada ciclismo)
-        vo2max = round((ftp / weight) * 10.8 + 7)
+        vo2max_ftp = round((ftp / weight) * 10.8 + 7)
+
+    vo2max_run = training_status.get("vo2max_running")
+    vo2max = round(vo2max_run) if vo2max_run else vo2max_ftp
+    vo2max_source = "garmin_running" if vo2max_run else ("ftp_estimate" if vo2max_ftp else None)
 
     # Fitness/Fatigue/Form
     fitness = calculate_fitness_fatigue_form(activities)
@@ -406,6 +442,10 @@ def calculate_all(garmin_data: dict, strava_data: dict) -> dict:
 
     return {
         "vo2max_estimated": vo2max,
+        "vo2max_source": vo2max_source,
+        "vo2max_running_garmin": vo2max_run,
+        "vo2max_from_ftp": vo2max_ftp,
+        "garmin_training_status": training_status,
         "fitness": fitness,
         "acwr": acwr,
         "race_predictions": races,

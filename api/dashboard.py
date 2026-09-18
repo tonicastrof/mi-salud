@@ -23,6 +23,7 @@ class handler(BaseHTTPRequestHandler):
             "stress": g.get("stress", {}),
             "body_battery": g.get("body_battery", []),
             "hrv": g.get("hrv", {}),
+            "training_status": g.get("training_status", {}),
             "spo2": g.get("spo2", {}),
             "respiration": g.get("respiration", {}),
             # Garmin semanal
@@ -44,6 +45,7 @@ class handler(BaseHTTPRequestHandler):
             "readiness": m.get("readiness", {}),
             "training_summary": m.get("training_summary", {}),
             "vo2max_estimated": m.get("vo2max_estimated"),
+            "vo2max_source": m.get("vo2max_source"),
         }
 
         self.send_response(200)

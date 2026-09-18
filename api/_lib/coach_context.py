@@ -43,6 +43,7 @@ def build_context(garmin: dict, strava: dict, metrics: dict,
     sleep = garmin.get("sleep", {}) or {}
     hrv = garmin.get("hrv", {}) or {}
     fitness = (metrics.get("fitness", {}) or {}).get("current", {}) or {}
+    gts = garmin.get("training_status", {}) or metrics.get("garmin_training_status", {}) or {}
     acwr = metrics.get("acwr", {}) or {}
     readiness = metrics.get("readiness", {}) or {}
     summary = an.get("summary", {}) or {}
@@ -55,7 +56,11 @@ def build_context(garmin: dict, strava: dict, metrics: dict,
         _line("Nombre", profile.get("name")),
         _line("Peso", profile.get("weight"), " kg"),
         _line("FTP", profile.get("ftp"), " W"),
-        _line("VO₂max estimado", metrics.get("vo2max_estimated"), " ml/kg/min"),
+        _line("VO₂max", f"{metrics.get('vo2max_estimated')} ml/kg/min"
+              + (" (medido por Garmin corriendo)"
+                 if metrics.get("vo2max_source") == "garmin_running"
+                 else " (estimado desde el FTP — sin dato de Garmin)")
+              if metrics.get("vo2max_estimated") else None),
         _line("Zonas de FC", _zones_text(strava.get("zones", {}))),
     ]))
 
@@ -94,23 +99,56 @@ def build_context(garmin: dict, strava: dict, metrics: dict,
         _line("Estado de forma", fitness.get("status")),
         _line("Ratio agudo:crónico", acwr.get("ratio")),
         _line("Riesgo por ACWR", acwr.get("risk")),
-        _line("Carga semanal (4 semanas, antigua→reciente)",
-              ", ".join(str(x) for x in acwr.get("weekly_loads", [])) or None),
+        _line("Carga aguda (últimos 7 días, hoy incluido)", acwr.get("acute_load")),
+        _line("Carga crónica (media semanal de los últimos 28 días)",
+              acwr.get("chronic_load")),
+        _line("Carga en ventanas móviles de 7 días (antigua→reciente)",
+              _rolling_text(acwr)),
         _line("Training readiness", readiness.get("score"), "/100"),
         _line("Lectura de readiness", readiness.get("status")),
+    ]))
+    parts.append(
+        "> Nota sobre las dos formas de medir la carga: las ventanas móviles de\n"
+        "> arriba van de hoy hacia atrás en bloques de 7 días. El bloque de\n"
+        "> «Volumen semanal» de abajo va por semanas naturales de lunes a domingo,\n"
+        "> y la última está EN CURSO. Por eso los dos últimos números no coinciden:\n"
+        "> miden periodos distintos, no es que uno esté mal.\n"
+    )
+
+    # ─── Lo que dice el reloj ───
+    parts.append(_block("Estado de entreno según Garmin (escala propia de Garmin)", [
+        _line("Estado", gts.get("status_phrase") or gts.get("status_code")),
+        _line("Carga de 7 días (Training Load de Garmin)", gts.get("load_7d")),
+        _line("ACWR según Garmin", gts.get("acwr_garmin")),
+        _line("VO₂max corriendo", gts.get("vo2max_running"), " ml/kg/min"),
+        _line("VO₂max en bici", gts.get("vo2max_cycling"), " ml/kg/min"),
+        _line("Aclimatación al calor", gts.get("heat_acclimation"), " %"),
+        "- Aviso: la «carga» de Garmin se calcula desde el EPOC del reloj y NO "
+        "está en la misma escala que el Relative Effort de Strava que usamos "
+        "arriba. Son tres cifras distintas midiendo cosas distintas; no las "
+        "sumes ni las compares entre sí." if gts.get("load_7d") else None,
     ]))
 
     # ─── Volumen ───
     weekly = an.get("weekly", [])[-8:]
-    parts.append(_block("Volumen semanal (últimas 8 semanas, antigua→actual)", [
-        f"- Semana del {w['label']}: {w['km']} km · {w['hours']} h · "
-        f"{w['elev']} m D+ · {w['count']} sesiones · carga {w['effort']}"
-        for w in weekly
-    ] + [
-        _line("Media 4 semanas", f"{summary.get('avg_week_km_4w')} km / "
-                                 f"{summary.get('avg_week_hours_4w')} h"),
-        _line("Racha de días seguidos", summary.get("streak")),
-    ]))
+    parts.append(_block(
+        "Volumen por semana natural (lunes→domingo, últimas 8, antigua→actual)", [
+            f"- Semana del {w['label']}: {w['km']} km · {w['hours']} h · "
+            f"{w['elev']} m D+ · {w['count']} sesiones · carga {w['effort']}"
+            + (f" · EN CURSO ({w['days_elapsed']}/7 días)" if w.get("partial") else "")
+            for w in weekly
+        ] + [
+            _line("Proyección de la semana en curso a este ritmo",
+                  f"{summary.get('this_week_projected_km')} km / "
+                  f"carga {summary.get('this_week_projected_load')}"
+                  if summary.get("this_week_partial") else None),
+            _line(f"Media de las {summary.get('avg_weeks_used', 4)} últimas semanas "
+                  f"COMPLETAS (sin la actual)",
+                  f"{summary.get('avg_week_km_4w')} km / "
+                  f"{summary.get('avg_week_hours_4w')} h / "
+                  f"carga {summary.get('avg_week_load_4w')}"),
+            _line("Racha de días seguidos", summary.get("streak")),
+        ]))
 
     # ─── Reparto por deporte ───
     parts.append(_block("Reparto por deporte (90 días)", [
@@ -180,6 +218,14 @@ def build_context(garmin: dict, strava: dict, metrics: dict,
     ]))
 
     return "\n".join(p for p in parts if p)
+
+
+def _rolling_text(acwr: dict) -> str:
+    """Las 4 ventanas móviles de 7 días, cada una con su rango de fechas."""
+    rows = acwr.get("rolling_loads") or []
+    if not rows:
+        return ", ".join(str(x) for x in acwr.get("weekly_loads", []))
+    return " | ".join(f"{r['label']} ({r['range']}): {r['load']}" for r in rows)
 
 
 def _zones_text(zones: dict) -> str:

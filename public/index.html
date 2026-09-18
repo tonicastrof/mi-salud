@@ -215,15 +215,20 @@ function Graficas({an,t}){
   const wd=an.weekday||[];
   const maxWd=Math.max(1,...wd.map(r=>r.count));
   const sum=an.summary||{};
-  const delta=sum.avg_week_km_4w?Math.round((sum.this_week_km-sum.avg_week_km_4w)/sum.avg_week_km_4w*100):0;
+  // La semana en curso está a medias: para el "vs media 4s" se compara el
+  // ritmo proyectado a 7 días contra la media de semanas COMPLETAS. Antes se
+  // comparaban 5 días contra 7 y siempre salía un desplome falso.
+  const projKm=sum.this_week_projected_km??sum.this_week_km??0;
+  const delta=sum.avg_week_km_4w?Math.round((projKm-sum.avg_week_km_4w)/sum.avg_week_km_4w*100):0;
+  const parcial=!!sum.this_week_partial;
 
   return h(React.Fragment,null,
     // Resumen de la semana
     h("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:14}},
-      [{i:"📍",v:sum.this_week_km||0,u:"km esta sem."},
+      [{i:"📍",v:sum.this_week_km||0,u:parcial?"km (lun→hoy)":"km esta sem."},
        {i:"⏱️",v:fmtH(sum.this_week_hours||0),u:"tiempo"},
        {i:"🔁",v:sum.this_week_sessions||0,u:"sesiones"},
-       {i:delta>=0?"📈":"📉",v:(delta>0?"+":"")+delta+"%",u:"vs media 4s"}].map((s,i)=>
+       {i:delta>=0?"📈":"📉",v:(delta>0?"+":"")+delta+"%",u:parcial?"ritmo vs media 4s":"vs media 4s"}].map((s,i)=>
         h("div",{key:i,style:{background:t.cd,borderRadius:10,padding:"9px 4px",border:"1px solid "+t.bd,textAlign:"center"}},
           h("div",{style:{fontSize:14}},s.i),
           h("div",{style:{fontSize:16,fontWeight:700,color:t.tx}},s.v),
@@ -236,14 +241,18 @@ function Graficas({an,t}){
           h(XAxis,{dataKey:"name",axisLine:false,tickLine:false,tick:{fontSize:8,fill:t.mt},interval:range>8?1:0}),
           h(YAxis,{yAxisId:"km",tick:{fontSize:9,fill:t.mt},axisLine:false,tickLine:false,width:30}),
           h(YAxis,{yAxisId:"load",orientation:"right",hide:true}),
-          h(Tooltip,{contentStyle:t.tip,formatter:(v,n)=>[n==="km"?v+" km":n==="effort"?"carga "+v:v,""]}),
+          h(Tooltip,{contentStyle:t.tip,formatter:(v,n)=>[n==="km"?v+" km":n==="effort"?"carga "+v:v,""],
+            labelFormatter:l=>{const w=weeks.find(x=>x.name===l);return "Semana del "+l+(w&&w.partial?" · en curso ("+w.days_elapsed+"/7 días)":"")}}),
           h(Bar,{yAxisId:"km",dataKey:"km",radius:[4,4,0,0],fill:A.steps,fillOpacity:0.8,barSize:range>12?10:18}),
           h(Line,{yAxisId:"load",type:"monotone",dataKey:"effort",stroke:A.fat,strokeWidth:2,dot:false}))),
       h("div",{style:{display:"flex",gap:14,justifyContent:"center"}},
         [{l:"km",c:A.steps},{l:"carga (RE)",c:A.fat}].map((s,i)=>
           h("div",{key:i,style:{display:"flex",alignItems:"center",gap:4}},
             h("div",{style:{width:7,height:7,borderRadius:"50%",background:s.c}}),
-            h("span",{style:{fontSize:10,color:t.mt}},s.l))))),
+            h("span",{style:{fontSize:10,color:t.mt}},s.l)))),
+      parcial&&h("div",{style:{fontSize:10,color:t.mt,textAlign:"center",marginTop:4}},
+        "Semanas naturales lun→dom. La última va por "+(sum.this_week_days_elapsed||0)+"/7 días, "+
+        "por eso su barra es más baja. La «carga aguda» del informe usa otra ventana: los últimos 7 días desde hoy.")),
     // Desnivel mensual
     h(Card,{title:"Desnivel acumulado por mes",accent:A.hike,t,style:{marginBottom:14}},
       h(ResponsiveContainer,{width:"100%",height:110},
@@ -489,6 +498,8 @@ function App(){
   const acts21=acts.filter(a=>(a.date||"")>=cut21);
   const vol21={km:acts21.reduce((s,a)=>s+(a.distance||0),0),elev:acts21.reduce((s,a)=>s+(a.elevation||0),0),n:acts21.length};
   const an=data.analytics||{};
+  const acwr=data.acwr||{};const gts=data.training_status||{};
+  const asum=an.summary||{};
   const tabs=[{id:"resumen",l:"Resumen"},{id:"rendimiento",l:"Forma"},{id:"actividades",l:"Entrenos"},{id:"coach",l:"🤖 Coach"}];
   const askCoach=(a)=>{setSel(null);setCoachCtx({id:a.id,name:a.name,sport:a.sport});setTab("coach")};
 
@@ -631,8 +642,29 @@ function App(){
           h("div",{style:{fontSize:11,color:t.sb,textAlign:"center"}},(fit.emoji||"")+" "+(fit.advice||"")),
           fit.warmup&&h("div",{style:{fontSize:10,color:t.mt,textAlign:"center",marginTop:4}},"Solo "+fit.history_days+" días de historial: el Fitness aún se está asentando")
         ),
+        h(Card,{title:"Carga — quién mide qué",accent:A.fat,t,style:{marginBottom:14}},
+          h("div",{style:{fontSize:11,color:t.sb,marginBottom:8}},
+            "Tres cifras distintas que NO son comparables entre sí. Cada una mide un periodo (y una escala) diferente."),
+          [
+            {l:"Aguda — últimos 7 días",v:acwr.acute_load,s:"Relative Effort de Strava · hoy-6 → hoy",c:A.fat},
+            {l:"Crónica — media 28 días",v:acwr.chronic_load,s:"Relative Effort de Strava · media semanal",c:A.fit},
+            {l:"Semana natural en curso",v:asum.this_week_load,
+             s:"Relative Effort · lunes → hoy ("+(asum.this_week_days_elapsed||0)+"/7 días). Es la barra de la gráfica",c:A.steps},
+            {l:"Carga 7 días de Garmin",v:gts.load_7d,s:"Escala propia de Garmin (EPOC) — no comparable con lo de arriba",c:A.bat},
+          ].filter(r=>r.v!=null&&r.v!=="").map((r,i)=>
+            h("div",{key:i,style:{display:"flex",alignItems:"center",gap:10,padding:"7px 0",borderTop:i?"1px solid "+t.bd:"none"}},
+              h("div",{style:{width:4,alignSelf:"stretch",background:r.c,borderRadius:2}}),
+              h("div",{style:{flex:1,minWidth:0}},
+                h("div",{style:{fontSize:12,fontWeight:700,color:t.tx}},r.l),
+                h("div",{style:{fontSize:10,color:t.mt}},r.s)),
+              h("div",{style:{fontSize:18,fontWeight:700,color:r.c}},r.v))),
+          acwr.ratio?h("div",{style:{marginTop:8,paddingTop:8,borderTop:"1px solid "+t.bd,fontSize:11,color:t.sb,textAlign:"center"}},
+            (acwr.emoji||"")+" Ratio agudo:crónico "+acwr.ratio+" — "+(acwr.risk||"")+" (zona segura 0,8–1,3)"):null
+        ),
         races.length>0&&h(Card,{title:"Predicción de Carreras",accent:A.vo2,t,style:{marginBottom:14}},
-          h("div",{style:{fontSize:11,color:t.sb,marginBottom:4}},"VO₂ Max "+vo2+" ml/kg/min · FTP "+(data.profile?.ftp||"—")+"W"),
+          h("div",{style:{fontSize:11,color:t.sb,marginBottom:4}},"VO₂ Max "+vo2+" ml/kg/min "+
+            (data.vo2max_source==="garmin_running"?"(medido por Garmin corriendo)":"(estimado desde el FTP — sincroniza Garmin para el real)")+
+            " · FTP "+(data.profile?.ftp||"—")+"W"),
           races.map((r,i)=>h("div",{key:i,style:{display:"flex",alignItems:"center",padding:"8px 0",borderBottom:i<races.length-1?"1px solid "+t.bd:"none"}},h("span",{style:{width:55,fontSize:13,fontWeight:700,color:t.tx}},r.distance),h("div",{style:{flex:1,marginRight:8}},h("div",{style:{height:6,background:t.ph,borderRadius:3,overflow:"hidden"}},h("div",{style:{width:Math.min(100,r.km/42.195*100)+"%",height:"100%",background:"linear-gradient(90deg,"+A.vo2+","+A.fit+")",borderRadius:3}}))),h("span",{style:{width:65,fontSize:14,fontWeight:700,color:t.tx,textAlign:"right"}},r.time),h("span",{style:{width:55,fontSize:10,color:t.sb,textAlign:"right"}},r.pace)))
         ),
         h(Card,{title:"Training Readiness",accent:(rd.score||0)>=70?A.bat:A.stress,t,style:{marginBottom:14}},

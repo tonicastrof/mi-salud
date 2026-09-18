@@ -68,7 +68,16 @@ def _round(bucket):
 # ─── VOLUMEN SEMANAL ───
 
 def weekly_volume(activities: list, weeks: int = 16) -> list:
-    """Volumen por semana (lunes a domingo), de la más antigua a la actual."""
+    """
+    Volumen por SEMANA NATURAL (lunes a domingo), de la más antigua a la actual.
+
+    Ojo: la última semana es la semana en curso y casi siempre está a medias.
+    Por eso cada bucket lleva `days_elapsed` (días ya transcurridos, 1-7) y
+    `partial`. Comparar esa semana con las anteriores —o con la ventana móvil
+    de 7 días de `metrics.calculate_acwr`— sin tener eso en cuenta es lo que
+    hacía que la misma carga se viera como 202 en la gráfica y como 400 en el
+    informe. No son la misma métrica: una es lunes→hoy, la otra hoy-6→hoy.
+    """
     today = datetime.now().date()
     first_monday = _monday(today) - timedelta(weeks=weeks - 1)
 
@@ -79,7 +88,7 @@ def weekly_volume(activities: list, weeks: int = 16) -> list:
 
     for a in activities:
         d = _date(a)
-        if not d:
+        if not d or d > today:
             continue
         wk = _monday(d)
         if wk in buckets:
@@ -92,8 +101,30 @@ def weekly_volume(activities: list, weeks: int = 16) -> list:
         b["week_start"] = wk.isoformat()
         b["label"] = f"{wk.day} {MESES[wk.month - 1]}"
         b["is_current"] = wk == _monday(today)
+        b["days_elapsed"] = min(7, (today - wk).days + 1) if wk <= today else 0
+        b["partial"] = b["days_elapsed"] < 7
         out.append(b)
     return out
+
+
+def rolling_load(activities: list, days: int = 7, offset: int = 0) -> float:
+    """
+    Carga (Relative Effort) en una ventana MÓVIL de `days` días que termina
+    hace `offset` días. offset=0 → los últimos `days` días contando hoy.
+
+    Es la ventana que usa el ACWR. No coincide con la semana natural y no
+    tiene por qué: aquí siempre hay `days` días completos.
+    """
+    today = datetime.now().date()
+    total = 0.0
+    for a in activities:
+        d = _date(a)
+        if not d:
+            continue
+        days_ago = (today - d).days
+        if offset <= days_ago < offset + days:
+            total += a.get("effort", 0) or 0
+    return total
 
 
 # ─── CALENDARIO ───
@@ -178,7 +209,7 @@ def current_streak(activities: list) -> int:
 
 def sport_totals(activities: list, days: int = 90) -> list:
     """Totales por deporte en los últimos N días."""
-    cutoff = datetime.now().date() - timedelta(days=days)
+    cutoff = datetime.now().date() - timedelta(days=days - 1)
     totals = {}
     for a in activities:
         d = _date(a)
@@ -210,7 +241,7 @@ def sport_totals(activities: list, days: int = 90) -> list:
 
 def weekday_distribution(activities: list, days: int = 90) -> list:
     """Cuántas sesiones y km por día de la semana."""
-    cutoff = datetime.now().date() - timedelta(days=days)
+    cutoff = datetime.now().date() - timedelta(days=days - 1)
     rows = [{"day": WEEKDAYS_SHORT[i], "name": WEEKDAYS[i],
              "count": 0, "km": 0.0, "minutes": 0} for i in range(7)]
     for a in activities:
@@ -228,7 +259,7 @@ def weekday_distribution(activities: list, days: int = 90) -> list:
 
 def time_of_day_distribution(activities: list, days: int = 90) -> list:
     """Reparto por franja horaria (usa la hora de inicio si está disponible)."""
-    cutoff = datetime.now().date() - timedelta(days=days)
+    cutoff = datetime.now().date() - timedelta(days=days - 1)
     slots = [
         {"slot": "Madrugada", "range": "00-06", "icon": "🌙", "count": 0},
         {"slot": "Mañana", "range": "06-12", "icon": "🌅", "count": 0},
@@ -353,11 +384,24 @@ def build_analytics(activities: list) -> dict:
     """Paquete completo de analítica para el dashboard y el entrenador IA."""
     activities = activities or []
     weeks = weekly_volume(activities, 16)
-    last4 = weeks[-4:]
 
-    avg_km = round(sum(w["km"] for w in last4) / 4, 1) if last4 else 0
-    avg_hours = round(sum(w["hours"] for w in last4) / 4, 1) if last4 else 0
+    # La media de referencia se calcula sobre las 4 últimas semanas COMPLETAS.
+    # Antes incluía la semana en curso (a medias), así que la media bajaba sola
+    # según avanzaba la semana y el "vs media 4s" salía doblemente falseado.
     this_week = weeks[-1] if weeks else _empty_bucket()
+    done = [w for w in weeks[:-1] if not w.get("partial")][-4:] if weeks else []
+    n = len(done) or 1
+
+    avg_km = round(sum(w["km"] for w in done) / n, 1)
+    avg_hours = round(sum(w["hours"] for w in done) / n, 1)
+    avg_load = round(sum(w["effort"] for w in done) / n)
+
+    # Proyección de la semana en curso al ritmo que lleva, para poder
+    # compararla con semanas completas sin comparar 5 días contra 7.
+    elapsed = this_week.get("days_elapsed") or 7
+    factor = 7 / elapsed
+    proj_km = round(this_week.get("km", 0) * factor, 1)
+    proj_load = round(this_week.get("effort", 0) * factor)
 
     return {
         "weekly": weeks,
@@ -371,11 +415,25 @@ def build_analytics(activities: list) -> dict:
         "records": records(activities),
         "summary": {
             "activities_loaded": len(activities),
+            # Semana natural en curso (lunes → hoy). Parcial casi siempre.
             "this_week_km": this_week.get("km", 0),
             "this_week_hours": this_week.get("hours", 0),
             "this_week_sessions": this_week.get("count", 0),
+            "this_week_load": this_week.get("effort", 0),
+            "this_week_days_elapsed": elapsed,
+            "this_week_partial": bool(this_week.get("partial")),
+            "this_week_projected_km": proj_km,
+            "this_week_projected_load": proj_load,
+            # Medias sobre semanas COMPLETAS, sin contar la que está en curso.
             "avg_week_km_4w": avg_km,
             "avg_week_hours_4w": avg_hours,
+            "avg_week_load_4w": avg_load,
+            "avg_weeks_used": len(done),
+            # Ventana móvil de 7 días (hoy-6 → hoy): la que usa el ACWR.
+            "last_7d_load": round(rolling_load(activities, 7)),
+            "last_7d_km": round(sum(
+                a.get("distance", 0) or 0 for a in activities
+                if _date(a) and 0 <= (datetime.now().date() - _date(a)).days < 7), 1),
             "streak": current_streak(activities),
         },
     }

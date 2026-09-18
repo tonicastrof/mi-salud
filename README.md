@@ -66,7 +66,28 @@ mi-salud-final/
   Forma negativa = la última semana ha cargado más que tu media de 6 semanas.
   Es lo normal entrenando; se busca que suba a positivo antes de competir.
 - Ratio Agudo:Crónico (riesgo lesión)
+
+  **Las tres cargas no son la misma cosa y nunca deben compararse entre sí:**
+
+  | Cifra | Ventana | Escala |
+  |---|---|---|
+  | Carga aguda / crónica (ACWR) | Móvil: hoy-6→hoy y media de 28 días | Relative Effort de Strava |
+  | Barra de «Volumen por semana» | Semana natural lun→dom, la última EN CURSO | Relative Effort de Strava |
+  | «Carga» del Estado de entreno | Últimos 7 días | Escala propia de Garmin (EPOC) |
+
+  Un viernes con 202 en la barra de la semana y 400 de carga aguda es correcto:
+  la barra lleva 5 días (lun→vie) y la aguda lleva 7 (incluye el sábado y el
+  domingo anteriores). La app ahora etiqueta ambas con su ventana y marca la
+  semana en curso con los días que lleva.
+
+  La media de 4 semanas se calcula solo con semanas **completas**: antes incluía
+  la semana a medias, así que la referencia bajaba sola según avanzaba la semana.
 - Predicción carreras (5K, 10K, media, maratón)
+
+  El VO₂max que se muestra es el que mide Garmin **corriendo**. Solo si Garmin
+  no lo da se recurre a la estimación desde el FTP, que es una fórmula de
+  ciclismo y se queda muy corta para correr. Los tiempos en sí se calibran con
+  tu mejor ritmo real de 5 km+, así que no dependen del VO₂max.
 - Training Readiness (compuesto)
 - Volumen por semana y por mes (16 semanas / 12 meses)
 - Calendario de días entrenados (12 semanas), racha y días de descanso
@@ -79,7 +100,7 @@ mi-salud-final/
 | Pestaña | Qué tiene |
 |---|---|
 | **Resumen** | Anillos del día, sueño, FC, estrés, Body Battery, tendencias de la semana |
-| **Forma** | CTL/ATL/TSB, predicción de carreras, training readiness, volumen |
+| **Forma** | CTL/ATL/TSB, **carga aguda/crónica con su ventana**, predicción de carreras, training readiness, volumen |
 | **Entrenos** | Gráficas de volumen, desnivel, reparto por deporte, cuándo entrenas, tendencia de ritmo/velocidad, récords, **calendario de entrenos** e historial |
 | **Coach** | Copia tu informe para pegarlo en la app de Claude, o chatea aquí mismo si activas la API |
 
