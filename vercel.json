@@ -37,6 +37,18 @@
       }
     },
     {
+      "src": "api/sync-all.py",
+      "use": "@vercel/python",
+      "config": {
+        "maxDuration": 60,
+        "memory": 1024
+      }
+    },
+    {
+      "src": "api/history.py",
+      "use": "@vercel/python"
+    },
+    {
       "src": "public/**",
       "use": "@vercel/static"
     }
@@ -75,8 +87,22 @@
       "dest": "/api/day.py"
     },
     {
+      "src": "/api/sync-all",
+      "dest": "/api/sync-all.py"
+    },
+    {
+      "src": "/api/history(.*)",
+      "dest": "/api/history.py"
+    },
+    {
       "src": "/(.*)",
       "dest": "/public/$1"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/sync-all",
+      "schedule": "10 5 * * *"
     }
   ]
 }

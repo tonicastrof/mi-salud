@@ -5,6 +5,7 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler
 from _lib.cache import save, load
 from _lib.metrics import calculate_all
+from _lib.archive import archive_day
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -19,10 +20,25 @@ class handler(BaseHTTPRequestHandler):
             save("metrics", metrics)
             meta = load("meta") or {}
             meta["metrics_calculated"] = metrics["calculated_at"]
+
+            # Archivar el día. Aquí y no en sync-garmin porque es el único punto
+            # donde garmin y metrics están frescos a la vez, así que la ficha del
+            # día se guarda con su readiness y su CTL/ATL/TSB. Si falla, el
+            # cálculo no se cae: el archivo es un extra, no la respuesta.
+            archived = []
+            try:
+                archived = archive_day(garmin, metrics)
+                if archived:
+                    meta["last_archived"] = archived[-1]
+                meta.pop("archive_error", None)
+            except Exception as e:
+                meta["archive_error"] = str(e)
+
             save("meta", meta)
             self._r(200, {"status": "ok", "calculated_at": metrics["calculated_at"],
                           "readiness": metrics.get("readiness", {}).get("score"),
-                          "tsb": metrics.get("fitness", {}).get("current", {}).get("tsb")})
+                          "tsb": metrics.get("fitness", {}).get("current", {}).get("tsb"),
+                          "archived_days": archived})
         except Exception as e:
             self._r(500, {"error": str(e)})
 

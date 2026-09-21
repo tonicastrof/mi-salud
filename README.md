@@ -11,10 +11,13 @@ mi-salud-final/
 │   │   ├── metrics.py        ← CTL/ATL/TSB, ACWR, predicciones, readiness
 │   │   ├── analytics.py      ← Volumen semanal, calendario, récords, tendencias
 │   │   ├── coach_context.py  ← Dossier del atleta para el entrenador IA
+│   │   ├── archive.py        ← Ficha diaria: guarda el día en el histórico
 │   │   └── cache.py          ← Upstash Redis
 │   ├── sync-garmin.py        ← Endpoint: descargar datos Garmin
 │   ├── sync-strava.py        ← Endpoint: descargar datos Strava
+│   ├── sync-all.py           ← Endpoint: los tres pasos seguidos (lo llama el cron)
 │   ├── calculate.py          ← Endpoint: calcular métricas
+│   ├── history.py            ← Endpoint: leer el archivo diario
 │   ├── dashboard.py          ← Endpoint: leer todo (instantáneo)
 │   ├── widget.py             ← Endpoint: resumen mínimo para el widget de Android
 │   ├── activity.py           ← Endpoint: detalle + streams de una actividad
@@ -94,6 +97,99 @@ mi-salud-final/
 - Reparto por deporte, por día de la semana y por franja horaria
 - Tendencias de ritmo (carrera) y velocidad (bici)
 - Récords: más larga, más desnivel, sesión más dura, ritmo más rápido
+
+## Sincronización automática y archivo diario
+
+### El problema que resuelve
+
+Antes los datos solo se refrescaban cuando abrías la app y pulsabas **Sync**.
+Eso dejaba dos agujeros:
+
+- **El widget mentía.** Enseñaba lo último que hubiera en Redis, que era de la
+  última vez que abriste la app. Si no la abrías en tres días, el widget
+  llevaba tres días de retraso — justo la parte que debería servir para *no*
+  tener que abrir nada.
+- **No había histórico.** Redis solo guardaba cuatro claves (`garmin`,
+  `strava`, `metrics`, `meta`) y cada sync las machacaba. Todo lo que la app
+  enseña «del pasado» sale de las ventanas móviles que devuelven Garmin y
+  Strava en ese momento: 7 días de sueño, HRV y estrés, 8 semanas de FC en
+  reposo, 200 actividades. En cuanto un dato salía de esa ventana,
+  desaparecía para siempre.
+
+### El cron
+
+`vercel.json` define un cron diario que llama a `/api/sync-all`:
+
+```json
+"crons": [{ "path": "/api/sync-all", "schedule": "10 5 * * *" }]
+```
+
+`/api/sync-all` encadena los tres pasos (Garmin → Strava → cálculo) en una
+sola llamada, porque un cron de Vercel apunta a una URL y no puede encadenar
+tres. El botón Sync de la app sigue llamando a los tres endpoints por separado:
+así enseña el progreso paso a paso y cada petición tiene su propio presupuesto
+de tiempo.
+
+- **Cada paso guarda en Redis en cuanto acaba**, así que si se agota el tiempo
+  a mitad quedan hechos los pasos anteriores en vez de perderse todo.
+- La respuesta trae el detalle por paso. **Un 200 no significa que los tres
+  fueran bien**: mira `status` (`ok` / `partial` / `error`) y `failed`.
+- `?steps=garmin,strava` limita qué pasos corren. Los tres caben de sobra en
+  los 60 s del plan Hobby, pero si algún día no cupieran se puede partir en
+  varios crons sin tocar código.
+
+**Ojo con el plan de Vercel.** En Hobby cada cron dispara **una vez al día** y
+`maxDuration` no puede pasar de 60 s (por eso está en 60 y no más). En Pro
+puedes subir la frecuencia a varias veces al día — `0 */6 * * *` para cada seis
+horas — y es lo recomendable para que el widget esté siempre al día.
+
+### Proteger el endpoint
+
+`/api/sync-all` dispara un login de Garmin y la descarga de 200 actividades, y
+la URL de Vercel es pública. Define `CRON_SECRET` y exigirá
+`Authorization: Bearer <secreto>`, que es justo la cabecera que manda Vercel
+Cron por su cuenta. Sin esa variable el endpoint queda abierto.
+
+### El archivo diario
+
+Cada cálculo guarda una **ficha compacta del día** en `day:YYYY-MM-DD`, más un
+índice en `day:index` con las fechas que hay. Lleva los pasos, calorías,
+distancia, FC en reposo/mín/máx, estrés, Body Battery, sueño con sus fases,
+HRV, SpO₂, respiración, y además el CTL/ATL/TSB, la readiness con su desglose
+y el ACWR de ese día.
+
+Es compacta a propósito: la foto completa lleva la curva de FC del día (248+
+mediciones) y no tiene sentido multiplicarla por 365.
+
+Dos cosas que hace y que no son obvias:
+
+- **Rellena los últimos 7 días, no solo hoy.** El cron corre de madrugada,
+  cuando «hoy» son 200 pasos y nada más; si solo archivara hoy, el archivo
+  sería una colección de días vacíos. Los arrays semanales del snapshot
+  (`steps_week`, `hrv_week`, …) traen los 7 últimos días con su fecha, así que
+  se aprovechan para completar hacia atrás. De paso tapa los huecos de los días
+  que no sincronizaste.
+- **Nunca degrada un día ya archivado.** Al fusionar, un valor nuevo a 0 o
+  vacío no pisa uno anterior que sí tenía dato: en estas métricas el 0 casi
+  siempre significa «no medido». La ficha completa de ayer por la noche no
+  pierde su readiness porque el array semanal de esta madrugada no la traiga.
+
+La readiness y el ACWR solo se guardan del día en que se calcularon — no se
+inventan hacia atrás. El CTL/ATL/TSB de días pasados sí, porque sale del
+timeline que Strava permite recalcular entero.
+
+### Leerlo
+
+```
+GET /api/history?days=90                        # fichas completas
+GET /api/history?days=180&field=readiness.score # una sola serie, aplanada
+GET /api/history?days=90&field=daily.resting_hr
+```
+
+Devuelve también `total_archived`, `first` y `last`, para saber cuánto archivo
+hay acumulado. Cuanto más tiempo lleve el cron corriendo, más largo es — y a
+diferencia del resto de la app, **esto no se puede reconstruir**: si no se
+guardó en su día, no está.
 
 ## Pestañas de la app
 
@@ -191,6 +287,9 @@ git push -u origin main
    - `UPSTASH_REDIS_URL` / `UPSTASH_REDIS_TOKEN`
    - `ANTHROPIC_API_KEY` ← **solo** si quieres el chat dentro de la app ([console.anthropic.com](https://console.anthropic.com) → API Keys). El botón «Copiar informe» funciona sin ella.
    - `APP_SECRET` (opcional pero recomendado) ← contraseña para `/api/coach`
+   - `CRON_SECRET` (opcional pero recomendado) ← protege `/api/sync-all`. Vercel
+     Cron la manda sola como `Authorization: Bearer …`; sin ella el endpoint es
+     público y cualquiera puede dispararte el sync.
    - `COACH_MODEL` (opcional) ← por defecto `claude-sonnet-5`
 3. Deploy
 
