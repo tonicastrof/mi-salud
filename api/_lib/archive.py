@@ -30,6 +30,7 @@ Dos cosas que hace y que no son obvias:
 from datetime import datetime
 
 from .cache import save, load, mload
+from .tz import ahora
 
 INDEX_KEY = "day:index"
 BACKFILL_DAYS = 7
@@ -190,7 +191,7 @@ def archive_day(garmin, metrics):
     dates = sorted(records)[-BACKFILL_DAYS:]
     existing = dict(zip(dates, mload([_key(d) for d in dates])))
 
-    now = datetime.now().isoformat()
+    now = ahora().isoformat()
     written = []
     for date in dates:
         merged = _merge(existing.get(date) or {}, records[date])

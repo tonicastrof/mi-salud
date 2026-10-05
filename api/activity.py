@@ -8,9 +8,12 @@ import json
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 from _lib.strava_client import StravaClient
+from _lib.auth import authorized, deny
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
+        if not authorized(self.headers):
+            return deny(self)
         q = parse_qs(urlparse(self.path).query)
         qid = q.get("id", [None])[0]
         full = q.get("full", ["0"])[0] not in ("0", "", "false")

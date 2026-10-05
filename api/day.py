@@ -8,9 +8,12 @@ import json
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 from _lib.garmin_client import GarminClient
+from _lib.auth import authorized, deny
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
+        if not authorized(self.headers):
+            return deny(self)
         date = parse_qs(urlparse(self.path).query).get("date", [None])[0]
         if not date:
             self._r(400, {"error": "Falta parámetro date (YYYY-MM-DD)"})

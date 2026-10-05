@@ -13,8 +13,8 @@ Variables de entorno:
                       pegar en Claude funciona sin ella)
   COACH_MODEL        (opcional, por defecto claude-sonnet-5;
                       pon claude-opus-5 si quieres análisis más finos)
-  APP_SECRET         (opcional; si está, hay que mandar la cabecera
-                      X-App-Secret con el mismo valor)
+  APP_SECRET         (opcional; ver _lib/auth.py: sin ella, la contraseña de
+                      la app es la de Garmin)
 """
 import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
@@ -25,6 +25,7 @@ from urllib.parse import urlparse, parse_qs
 from _lib.cache import load
 from _lib.analytics import build_analytics
 from _lib.coach_context import build_context, build_plan_block
+from _lib.auth import authorized
 
 MODEL = os.getenv("COACH_MODEL", "claude-sonnet-5")
 MAX_TOKENS = 3000
@@ -104,7 +105,7 @@ class handler(BaseHTTPRequestHandler):
         self._r(200, {
             "enabled": bool(os.getenv("ANTHROPIC_API_KEY")),
             "model": MODEL,
-            "protected": bool(os.getenv("APP_SECRET")),
+            "protected": True,
             "suggestions": SUGGESTIONS,
         })
 
@@ -116,8 +117,7 @@ class handler(BaseHTTPRequestHandler):
     # ─── Conversación ───
 
     def _autorizado(self):
-        secret = os.getenv("APP_SECRET")
-        return not secret or self.headers.get("X-App-Secret") == secret
+        return authorized(self.headers)
 
     def do_POST(self):
         if not self._autorizado():

@@ -10,8 +10,9 @@ los pasos anteriores hechos en vez de perderlo todo. Por eso también devuelve
 el detalle por paso: un 200 aquí no significa que los tres fueran bien.
 
 Si `CRON_SECRET` está definida, exige `Authorization: Bearer <secreto>` — que
-es justo la cabecera que manda Vercel Cron. Sin ella el endpoint es público y
-cualquiera puede disparar un login de Garmin y la descarga de 200 actividades.
+es justo la cabecera que manda Vercel Cron — o la sesión de la app. Sin ella,
+el cron llega sin credenciales: se le deja pasar, pero como mucho una vez cada
+30 minutos (ver _throttled).
 
 `?steps=garmin,strava` limita qué pasos corren (garmin, plan, strava,
 calculate). Todos juntos caben de sobra en los 60s del plan Hobby, pero si
@@ -22,7 +23,7 @@ luego `?steps=strava,calculate`) sin tocar código.
 import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 
@@ -31,16 +32,22 @@ from _lib.garmin_client import GarminClient
 from _lib.strava_client import StravaClient
 from _lib.metrics import calculate_all
 from _lib.archive import archive_day
+from _lib.tz import ahora
+from _lib.auth import authorized
 
 
-def _authorized(headers):
-    secret = os.environ.get("CRON_SECRET")
-    if not secret:
-        return True
-    auth = headers.get("Authorization") or ""
-    if auth.startswith("Bearer ") and auth[7:] == secret:
-        return True
-    return headers.get("X-App-Secret") == secret
+MIN_GAP = timedelta(minutes=30)
+
+
+def _throttled(meta):
+    """Sin CRON_SECRET el cron llega sin credenciales y hay que dejarlo pasar;
+    a cambio, como mucho una ejecución cada 30 min para que nadie pueda
+    lanzar logins de Garmin en bucle."""
+    last = meta.get("last_sync_all")
+    try:
+        return last and ahora() - datetime.fromisoformat(last) < MIN_GAP
+    except ValueError:
+        return False
 
 
 _garmin = None
@@ -60,7 +67,7 @@ def _garmin_client():
 def _sync_garmin(meta):
     g = _garmin_client()
     data = g.get_full_snapshot()
-    data["synced_at"] = datetime.now().isoformat()
+    data["synced_at"] = ahora().isoformat()
     save("garmin", data)
     meta["garmin_synced"] = data["synced_at"]
     return {"steps": (data.get("daily") or {}).get("steps", 0),
@@ -72,7 +79,7 @@ def _sync_strava(meta):
     if not s.connect():
         raise RuntimeError("No se pudo conectar con Strava")
     data = s.get_full_snapshot()
-    data["synced_at"] = datetime.now().isoformat()
+    data["synced_at"] = ahora().isoformat()
     save("strava", data)
     meta["strava_synced"] = data["synced_at"]
     return {"activities": len(data.get("activities", []))}
@@ -82,7 +89,7 @@ def _sync_plan(meta):
     # Paso propio: si el calendario falla, sueño/HRV ya están guardados.
     g = _garmin_client()
     data = {"workouts": g.get_scheduled_workouts(),
-            "synced_at": datetime.now().isoformat()}
+            "synced_at": ahora().isoformat()}
     save("garmin_plan", data)
     meta["plan_synced"] = data["synced_at"]
     return {"workouts": len(data["workouts"])}
@@ -94,7 +101,7 @@ def _calculate(meta):
     if not garmin and not strava:
         raise RuntimeError("No hay datos que calcular")
     metrics = calculate_all(garmin, strava)
-    metrics["calculated_at"] = datetime.now().isoformat()
+    metrics["calculated_at"] = ahora().isoformat()
     save("metrics", metrics)
     meta["metrics_calculated"] = metrics["calculated_at"]
 
@@ -120,9 +127,15 @@ class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         global _garmin
         _garmin = None  # nada de arrastrar la sesión de una ejecución anterior
-        if not _authorized(self.headers):
-            self._r(401, {"error": "No autorizado"})
-            return
+        meta = load("meta") or {}
+        authed = authorized(self.headers)
+        if not authed:
+            if os.environ.get("CRON_SECRET"):
+                self._r(401, {"error": "No autorizado"})
+                return
+            if _throttled(meta):
+                self._r(429, {"error": "Ya se sincronizó hace menos de 30 min"})
+                return
 
         wanted = (parse_qs(urlparse(self.path).query).get("steps", [""])[0] or "").strip()
         only = {p.strip() for p in wanted.split(",") if p.strip()} if wanted else None
@@ -131,8 +144,7 @@ class handler(BaseHTTPRequestHandler):
             return
         steps = [(n, f) for n, f in STEPS if not only or n in only]
 
-        started = datetime.now()
-        meta = load("meta") or {}
+        started = ahora()
         results, failed = {}, []
 
         for name, fn in steps:
@@ -149,9 +161,10 @@ class handler(BaseHTTPRequestHandler):
         payload = {
             "status": "ok" if not failed else ("partial" if len(failed) < len(steps) else "error"),
             "started_at": started.isoformat(),
-            "seconds": round((datetime.now() - started).total_seconds(), 1),
+            "seconds": round((ahora() - started).total_seconds(), 1),
             "failed": failed,
-            "steps": results,
+            # Sin credenciales (cron sin CRON_SECRET) no se enseñan cifras
+            "steps": results if authed else {n: {"ok": r["ok"]} for n, r in results.items()},
         }
         # Un fallo parcial sigue siendo 200: hay datos nuevos en Redis y no
         # quiero que el cron lo cuente como caída. Solo si no se salvó nada.

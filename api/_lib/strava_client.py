@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import requests
+from .tz import ahora
 
 logger = logging.getLogger(__name__)
 
@@ -404,7 +405,7 @@ class StravaClient:
         profile = self.get_profile()
 
         return {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": ahora().isoformat(),
             "profile": profile,
             "activities": activities,
             "gear": self.get_gear(),

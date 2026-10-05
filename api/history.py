@@ -19,6 +19,7 @@ from urllib.parse import urlparse, parse_qs
 
 from _lib.cache import load
 from _lib.archive import read_days, INDEX_KEY
+from _lib.auth import authorized, deny
 
 
 def _dig(record, path):
@@ -32,6 +33,8 @@ def _dig(record, path):
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
+        if not authorized(self.headers):
+            return deny(self)
         q = parse_qs(urlparse(self.path).query)
         try:
             days = max(1, min(1000, int(q.get("days", ["90"])[0])))

@@ -5,6 +5,7 @@ CTL/ATL/TSB, Ratio Agudo:Crónico, Predicciones de carrera, Training Readiness.
 
 import math
 from datetime import datetime, timedelta
+from .tz import ahora
 
 
 def current_body_battery(garmin_data: dict) -> int:
@@ -38,7 +39,7 @@ def calculate_fitness_fatigue_form(activities: list, max_history_days: int = 400
         return {"timeline": [], "current": {"ctl": 0, "atl": 0, "tsb": 0}}
 
     # Crear mapa de carga diaria
-    today = datetime.now().date()
+    today = ahora().date()
 
     daily_load = {}
     for a in activities:
@@ -143,7 +144,7 @@ def calculate_acwr(activities: list) -> dict:
 
     Zona segura: 0.8 — 1.3. Riesgo: > 1.5.
     """
-    today = datetime.now().date()
+    today = ahora().date()
 
     def window_load(days_back_start, days_back_end):
         """Carga en la ventana [days_back_end, days_back_start) días atrás."""
@@ -349,7 +350,7 @@ def calculate_training_readiness(
 def calculate_training_summary(activities: list, days: int = 21) -> dict:
     """Resumen de entrenamiento de los últimos N días (hoy incluido)."""
     # days-1: con days=21 la ventana es hoy-20→hoy, 21 días. Antes cogía 22.
-    cutoff = datetime.now().date() - timedelta(days=days - 1)
+    cutoff = ahora().date() - timedelta(days=days - 1)
 
     recent = []
     for a in activities:
@@ -357,7 +358,7 @@ def calculate_training_summary(activities: list, days: int = 21) -> dict:
             date = datetime.fromisoformat(a["date"]).date()
         except (ValueError, KeyError):
             continue
-        if cutoff <= date <= datetime.now().date():
+        if cutoff <= date <= ahora().date():
             recent.append(a)
 
     total_km = sum(a.get("distance", 0) for a in recent)

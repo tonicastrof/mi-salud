@@ -56,12 +56,17 @@ public class SaludWidget extends AppWidgetProvider {
         new Thread(() -> {
             String error = null;
             try {
-                String body = get(Config.baseUrl(app) + "/api/widget");
+                String body = get(Config.baseUrl(app) + "/api/widget", Config.token(app));
                 new JSONObject(body); // valida antes de guardar
                 SharedPreferences.Editor e = Config.prefs(app).edit();
                 e.putString(Config.KEY_SNAPSHOT, body);
                 e.putLong(Config.KEY_SNAPSHOT_AT, System.currentTimeMillis());
                 e.apply();
+            } catch (Unauthorized ex) {
+                // La sesión guardada ya no vale (o nunca hubo): se vuelve a leer
+                // de la WebView y, si tampoco, hay que entrar en la app.
+                Config.prefs(app).edit().remove(Config.KEY_TOKEN).apply();
+                error = "abre la app para iniciar sesión";
             } catch (Exception ex) {
                 error = "sin conexión";
             }
@@ -73,7 +78,10 @@ public class SaludWidget extends AppWidgetProvider {
         }).start();
     }
 
-    private static String get(String url) throws Exception {
+    private static final class Unauthorized extends Exception {
+    }
+
+    private static String get(String url, String token) throws Exception {
         HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
         try {
             conn.setRequestMethod("GET");
@@ -81,6 +89,12 @@ public class SaludWidget extends AppWidgetProvider {
             conn.setReadTimeout(6000);
             conn.setRequestProperty("Accept", "application/json");
             conn.setRequestProperty("User-Agent", "MiSaludWidget/" + BuildConfig.VERSION_NAME);
+            if (token != null && !token.isEmpty()) {
+                conn.setRequestProperty("X-App-Token", token);
+            }
+            if (conn.getResponseCode() == 401) {
+                throw new Unauthorized();
+            }
             if (conn.getResponseCode() != 200) {
                 throw new IllegalStateException("HTTP " + conn.getResponseCode());
             }

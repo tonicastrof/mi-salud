@@ -47,3 +47,15 @@ def mload(keys):
         got = _r().mget(*chunk)
         out.extend(got if got else [None] * len(chunk))
     return [_decode(v) for v in out]
+
+
+def incr(key, ttl):
+    """Contador con caducidad (para limitar intentos). Devuelve el valor nuevo."""
+    n = _r().incr(key)
+    if n == 1:
+        _r().expire(key, ttl)
+    return n
+
+
+def delete(key):
+    _r().delete(key)

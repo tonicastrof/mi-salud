@@ -7,6 +7,7 @@ Todo se calcula en memoria — no hace llamadas a la API.
 """
 
 from datetime import datetime, timedelta
+from .tz import ahora
 
 WEEKDAYS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 WEEKDAYS_SHORT = ["L", "M", "X", "J", "V", "S", "D"]
@@ -78,7 +79,7 @@ def weekly_volume(activities: list, weeks: int = 16) -> list:
     hacía que la misma carga se viera como 202 en la gráfica y como 400 en el
     informe. No son la misma métrica: una es lunes→hoy, la otra hoy-6→hoy.
     """
-    today = datetime.now().date()
+    today = ahora().date()
     first_monday = _monday(today) - timedelta(weeks=weeks - 1)
 
     buckets = {}
@@ -115,7 +116,7 @@ def rolling_load(activities: list, days: int = 7, offset: int = 0) -> float:
     Es la ventana que usa el ACWR. No coincide con la semana natural y no
     tiene por qué: aquí siempre hay `days` días completos.
     """
-    today = datetime.now().date()
+    today = ahora().date()
     total = 0.0
     for a in activities:
         d = _date(a)
@@ -134,7 +135,7 @@ def calendar_grid(activities: list, weeks: int = 12) -> dict:
     Rejilla de días entrenados: `weeks` semanas × 7 días (lunes→domingo).
     Cada día trae km, minutos, esfuerzo y los deportes de ese día.
     """
-    today = datetime.now().date()
+    today = ahora().date()
     first_monday = _monday(today) - timedelta(weeks=weeks - 1)
 
     days = {}
@@ -195,7 +196,7 @@ def current_streak(activities: list) -> int:
     dates.discard(None)
     if not dates:
         return 0
-    today = datetime.now().date()
+    today = ahora().date()
     start = today if today in dates else today - timedelta(days=1)
     streak = 0
     d = start
@@ -209,7 +210,7 @@ def current_streak(activities: list) -> int:
 
 def sport_totals(activities: list, days: int = 90) -> list:
     """Totales por deporte en los últimos N días."""
-    cutoff = datetime.now().date() - timedelta(days=days - 1)
+    cutoff = ahora().date() - timedelta(days=days - 1)
     totals = {}
     for a in activities:
         d = _date(a)
@@ -241,7 +242,7 @@ def sport_totals(activities: list, days: int = 90) -> list:
 
 def weekday_distribution(activities: list, days: int = 90) -> list:
     """Cuántas sesiones y km por día de la semana."""
-    cutoff = datetime.now().date() - timedelta(days=days - 1)
+    cutoff = ahora().date() - timedelta(days=days - 1)
     rows = [{"day": WEEKDAYS_SHORT[i], "name": WEEKDAYS[i],
              "count": 0, "km": 0.0, "minutes": 0} for i in range(7)]
     for a in activities:
@@ -259,7 +260,7 @@ def weekday_distribution(activities: list, days: int = 90) -> list:
 
 def time_of_day_distribution(activities: list, days: int = 90) -> list:
     """Reparto por franja horaria (usa la hora de inicio si está disponible)."""
-    cutoff = datetime.now().date() - timedelta(days=days - 1)
+    cutoff = ahora().date() - timedelta(days=days - 1)
     slots = [
         {"slot": "Madrugada", "range": "00-06", "icon": "🌙", "count": 0},
         {"slot": "Mañana", "range": "06-12", "icon": "🌅", "count": 0},
@@ -307,7 +308,7 @@ def pace_trend(activities: list, sport: str = "Run", limit: int = 24) -> list:
 
 def monthly_volume(activities: list, months: int = 12) -> list:
     """Volumen por mes natural, del más antiguo al actual."""
-    today = datetime.now().date()
+    today = ahora().date()
     keys = []
     y, m = today.year, today.month
     for _ in range(months):
@@ -433,7 +434,7 @@ def build_analytics(activities: list) -> dict:
             "last_7d_load": round(rolling_load(activities, 7)),
             "last_7d_km": round(sum(
                 a.get("distance", 0) or 0 for a in activities
-                if _date(a) and 0 <= (datetime.now().date() - _date(a)).days < 7), 1),
+                if _date(a) and 0 <= (ahora().date() - _date(a)).days < 7), 1),
             "streak": current_streak(activities),
         },
     }

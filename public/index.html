@@ -25,7 +25,33 @@ input[type=date]::-webkit-calendar-picker-indicator{cursor:pointer;opacity:0.6}
 const{useState,useEffect,useCallback}=React;
 const h=React.createElement;
 const{LineChart,Line,AreaChart,Area,BarChart,Bar,ComposedChart,XAxis,YAxis,Tooltip,ResponsiveContainer,Cell,ReferenceLine}=Recharts;
-const api=(p)=>fetch("/api/"+p).then(r=>r.json());
+// Si la API pide sesión (401), la app enseña la pantalla de contraseña
+let onNeedLogin=()=>{};
+const api=(p)=>fetch("/api/"+p).then(r=>{if(r.status===401)onNeedLogin();return r.json()});
+const localISO=(d)=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+
+function Login({t,onOk}){
+  const[pw,setPw]=useState("");const[busy,setBusy]=useState(false);const[err,setErr]=useState("");
+  const entrar=async(e)=>{
+    e.preventDefault();if(!pw||busy)return;setBusy(true);setErr("");
+    try{
+      const r=await fetch("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:pw})});
+      const j=await r.json();
+      if(r.ok){try{window.MiSaludNative&&MiSaludNative.loggedIn()}catch(x){}onOk()}else setErr(j.error||"Error "+r.status);
+    }catch(x){setErr("Sin conexión")}
+    setBusy(false);
+  };
+  return h("div",{style:{minHeight:"100vh",background:t.bg,display:"flex",alignItems:"center",justifyContent:"center",padding:16}},
+    h("form",{onSubmit:entrar,style:{width:"100%",maxWidth:340,background:t.cd,border:"1px solid "+t.bd,borderRadius:16,padding:"24px 20px",display:"flex",flexDirection:"column",gap:12}},
+      h("div",{style:{fontSize:32,textAlign:"center"}},"🔒"),
+      h("div",{style:{fontSize:17,fontWeight:700,color:t.tx,textAlign:"center"}},"Mi Salud"),
+      h("div",{style:{fontSize:12,color:t.sb,textAlign:"center",lineHeight:1.5}},"Tus datos de salud ya no son públicos. Entra con tu contraseña de Garmin (o con APP_SECRET si la configuraste en Vercel). Solo se pide una vez en cada dispositivo."),
+      h("input",{type:"password",autoFocus:true,value:pw,onChange:e=>setPw(e.target.value),placeholder:"Contraseña",autoComplete:"current-password",
+        style:{padding:"11px 14px",borderRadius:12,border:"1px solid "+t.bd,background:t.ph,color:t.tx,fontSize:14,outline:"none"}}),
+      err&&h("div",{style:{fontSize:12,color:t.bR.f,background:t.bR.b,borderRadius:8,padding:"7px 10px"}},"⚠️ "+err),
+      h("button",{type:"submit",disabled:busy||!pw,style:{padding:"11px 0",border:"none",borderRadius:12,fontSize:14,fontWeight:700,cursor:"pointer",
+        background:busy||!pw?t.ph:"linear-gradient(135deg,#3b82f6,#8b5cf6)",color:busy||!pw?t.mt:"#fff"}},busy?"⏳ Entrando...":"Entrar")));
+}
 
 const A={run:"#e85d4a",ride:"#2d9cdb",hike:"#27ae60",sleep:"#7c5cfc",hr:"#ef4444",bat:"#10b981",stress:"#f59e0b",vo2:"#06b6d4",steps:"#3b82f6",fit:"#8b5cf6",fat:"#f97316"};
 const SC={Run:A.run,Ride:A.ride,Hike:A.hike};const SI={Run:"🏃",Ride:"🚴",Hike:"⛰️"};
@@ -324,9 +350,11 @@ const WTIPOS=[
   {re:/recover|recupera|regenera/,l:"Recuperación",c:"#60a5fa"},
   {re:/sprint|speed|velocidad/,l:"Sprint",c:"#ec4899"},
   {re:/anaer/,l:"Anaeróbico",c:"#a855f7"},
-  {re:/vo2|interval|series|\d+\s*[x×]\s*\d+/,l:"VO₂ máx",c:"#ef4444"},
+  {re:/vo2/,l:"VO₂ máx",c:"#ef4444"},
   {re:/threshold|umbral|lactate|lactato/,l:"Umbral",c:"#f97316"},
   {re:/tempo/,l:"Tempo",c:"#f59e0b"},
+  // Series sin más pistas («6x800»): después de umbral/tempo, que también usan NxM
+  {re:/interval|series|\d+\s*[x×]\s*\d+/,l:"VO₂ máx",c:"#ef4444"},
   {re:/long|larg|tirada/,l:"Larga",c:"#14b8a6"},
   {re:/base|aerob|easy|suave|rodaje/,l:"Base",c:"#22c55e"},
 ];
@@ -533,6 +561,8 @@ function App(){
   const[tab,setTab]=useState("resumen");
   const[sel,setSel]=useState(null);
   const[coachCtx,setCoachCtx]=useState(null);
+  const[needLogin,setNeedLogin]=useState(false);
+  onNeedLogin=()=>setNeedLogin(true);
   const[flt,setFlt]=useState("Todas");
   const[data,setData]=useState(null);
   const[syncing,setSyncing]=useState(false);
@@ -543,7 +573,7 @@ function App(){
   const[loadingDay,setLoadingDay]=useState(false);
   const t=dk?Dk:L;
 
-  const today=new Date().toISOString().slice(0,10);
+  const today=localISO(new Date());
   const isToday=!selDate||selDate===today;
 
   const load=useCallback(()=>{api("dashboard").then(j=>{if(j.has_data)setData(j)}).catch(console.error)},[]);
@@ -565,6 +595,7 @@ function App(){
     setLoadingDay(false);
   },[today]);
 
+  if(needLogin)return h(Login,{t,onOk:()=>{setNeedLogin(false);load()}});
   if(!data)return h("div",{style:{minHeight:"100vh",background:t.bg,display:"flex",alignItems:"center",justifyContent:"center"}},h("div",{style:{textAlign:"center",color:t.tx}},h("div",{style:{fontSize:40,marginBottom:16}},"⏳"),h("div",{style:{fontSize:16,fontWeight:700}},"Cargando datos..."),h("button",{onClick:sync,style:{marginTop:20,padding:"10px 24px",border:"none",borderRadius:12,background:"linear-gradient(135deg,#3b82f6,#8b5cf6)",color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer"}},"🔄 Sincronizar")));
 
   // Choose data source: historical day or today's dashboard
@@ -585,7 +616,7 @@ function App(){
   const filtered=flt==="Todas"?acts:acts.filter(a=>a.sport===flt);
   // Volumen de las últimas 3 semanas — no de todo el histórico cacheado
   const dCut=new Date();dCut.setDate(dCut.getDate()-21);
-  const cut21=dCut.getFullYear()+"-"+String(dCut.getMonth()+1).padStart(2,"0")+"-"+String(dCut.getDate()).padStart(2,"0");
+  const cut21=localISO(dCut);
   const acts21=acts.filter(a=>(a.date||"")>=cut21);
   const vol21={km:acts21.reduce((s,a)=>s+(a.distance||0),0),elev:acts21.reduce((s,a)=>s+(a.elevation||0),0),n:acts21.length};
   const an=data.analytics||{};

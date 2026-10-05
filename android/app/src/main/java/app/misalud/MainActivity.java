@@ -18,6 +18,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
+import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
@@ -126,6 +127,9 @@ public class MainActivity extends Activity {
                 hideError();
                 if (isInternal(Uri.parse(url))) {
                     view.evaluateJavascript(bridgeScript(), null);
+                    // La sesión vive en una cookie: que persista y que el widget la tenga
+                    CookieManager.getInstance().flush();
+                    Config.syncToken(MainActivity.this);
                 }
             }
 
@@ -154,6 +158,17 @@ public class MainActivity extends Activity {
     }
 
     public class Bridge {
+        /** La web avisa al iniciar sesión: guarda la cookie y refresca el widget ya. */
+        @JavascriptInterface
+        public void loggedIn() {
+            runOnUiThread(() -> {
+                CookieManager.getInstance().flush();
+                Config.syncToken(MainActivity.this);
+                sendBroadcast(new Intent(MainActivity.this, SaludWidget.class)
+                        .setAction(SaludWidget.ACTION_REFRESH));
+            });
+        }
+
         @JavascriptInterface
         public void copy(String text) {
             runOnUiThread(() -> {

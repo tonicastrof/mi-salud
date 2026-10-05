@@ -4,15 +4,14 @@ Maneja timestamps en ms, valores None, Body Battery, métricas semanales.
 """
 
 import os
-import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from garminconnect import Garmin
+from .tz import ahora, MADRID
+from .cache import load, save
 
 logger = logging.getLogger(__name__)
-TOKEN_DIR = Path("/tmp/.garmin_tokens")
-TOKEN_DIR.mkdir(exist_ok=True)
 
 DAY_NAMES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 
@@ -27,9 +26,15 @@ def _ms_to_time(ms):
     if not ms:
         return ""
     try:
-        return datetime.fromtimestamp(ms / 1000).strftime("%H:%M")
+        # Los *TimestampLocal ya vienen en hora local: se leen tal cual, sin zona
+        return datetime.fromtimestamp(ms / 1000, timezone.utc).strftime("%H:%M")
     except Exception:
         return str(ms)
+
+
+TOKENS_KEY = "garmin_tokens"
+TOKEN_DIR = Path("/tmp/.garmin_tokens")
+TOKEN_FILE = TOKEN_DIR / "garmin_tokens.json"
 
 
 class GarminClient:
@@ -37,46 +42,73 @@ class GarminClient:
         self.email = os.getenv("GARMIN_EMAIL")
         self.password = os.getenv("GARMIN_PASSWORD")
         self.client = None
+        self._stats = {}
 
     def connect(self):
-        token_file = TOKEN_DIR / "session.json"
+        """
+        Reutiliza la sesión guardada en Redis y solo hace login con usuario y
+        contraseña si no hay sesión o ha caducado. Garmin bloquea durante un
+        rato las cuentas que hacen muchos logins seguidos, y /tmp solo no
+        sirve: se borra en cada arranque en frío de Vercel.
+
+        La librería sabe cargar y guardar la sesión en un fichero; se le da
+        uno en /tmp relleno desde Redis y lo que quede en él se devuelve a Redis.
+        """
+        saved = None
         try:
-            if token_file.exists():
-                with open(token_file) as f:
-                    tokens = json.load(f)
-                self.client = Garmin()
-                self.client.login(tokens)
-                logger.info("Garmin: sesión restaurada")
-                return True
-        except Exception:
-            pass
+            saved = load(TOKENS_KEY)
+        except Exception as e:
+            logger.error(f"Garmin: no se pudo leer la sesión guardada: {e}")
+        try:
+            TOKEN_DIR.mkdir(parents=True, exist_ok=True)
+            if isinstance(saved, str) and saved:
+                TOKEN_FILE.write_text(saved)
+            elif TOKEN_FILE.exists():
+                TOKEN_FILE.unlink()
+        except Exception as e:
+            logger.error(f"Garmin: no se pudo preparar la sesión: {e}")
 
         try:
             self.client = Garmin(self.email, self.password)
-            self.client.login()
-            try:
-                with open(token_file, "w") as f:
-                    json.dump(self.client.garth.dumps(), f)
-            except Exception:
-                pass
-            logger.info("Garmin: login OK")
-            return True
+            # Con sesión válida no hay login; si caducó, lo hace la librería
+            # con usuario y contraseña y escribe la nueva en el fichero.
+            self.client.login(str(TOKEN_DIR))
         except Exception as e:
             logger.error(f"Garmin login error: {e}")
             return False
 
+        self._save_tokens(saved)
+        return True
+
+    def _save_tokens(self, previous=None):
+        """Guarda la sesión si ha cambiado (login nuevo o tokens refrescados)."""
+        try:
+            tokens = self.client.client.dumps()
+            if tokens and tokens != previous:
+                save(TOKENS_KEY, tokens)
+                logger.info("Garmin: sesión nueva guardada")
+        except Exception as e:
+            logger.error(f"Garmin: no se pudo guardar la sesión: {e}")
+
+    def _get_stats(self, date):
+        """get_stats con memoria: pasos, HRV, estrés y Body Battery semanales
+        piden los mismos 7 días; así son 7 llamadas en vez de 28."""
+        if date not in self._stats:
+            self._stats[date] = self.client.get_stats(date) or {}
+        return self._stats[date]
+
     def _today(self):
-        return datetime.now().strftime("%Y-%m-%d")
+        return ahora().strftime("%Y-%m-%d")
 
     def _date(self, days_ago=0):
-        return (datetime.now() - timedelta(days=days_ago)).strftime("%Y-%m-%d")
+        return (ahora() - timedelta(days=days_ago)).strftime("%Y-%m-%d")
 
     # ─── HOY ───
 
     def get_daily(self, date=None):
         date = date or self._today()
         try:
-            s = self.client.get_stats(date)
+            s = self._get_stats(date)
             active_sec = _safe(s.get("highlyActiveSeconds")) + _safe(s.get("activeSeconds"))
             return {
                 "date": date,
@@ -148,7 +180,7 @@ class GarminClient:
             hourly = {}
             for entry in data.get("heartRateValues", []):
                 if entry and len(entry) == 2 and entry[1]:
-                    hour = datetime.fromtimestamp(entry[0] / 1000).strftime("%H")
+                    hour = datetime.fromtimestamp(entry[0] / 1000, MADRID).strftime("%H")
                     if hour not in hourly:
                         hourly[hour] = []
                     hourly[hour].append(entry[1])
@@ -177,7 +209,7 @@ class GarminClient:
             hourly = {}
             for entry in data.get("stressValuesArray", []):
                 if entry and len(entry) == 2 and entry[1] and entry[1] > 0:
-                    hour = datetime.fromtimestamp(entry[0] / 1000).strftime("%H")
+                    hour = datetime.fromtimestamp(entry[0] / 1000, MADRID).strftime("%H")
                     if hour not in hourly:
                         hourly[hour] = []
                     hourly[hour].append(entry[1])
@@ -215,7 +247,7 @@ class GarminClient:
 
             # Si el timeline viene vacío, generar uno aproximado desde los valores del resumen
             if not timeline:
-                stats = self.client.get_stats(date)
+                stats = self._get_stats(date)
                 high = _safe(stats.get("bodyBatteryHighestValue"))
                 low = _safe(stats.get("bodyBatteryLowestValue"))
                 if high > 0:
@@ -340,7 +372,7 @@ class GarminClient:
         for i in range(6, -1, -1):
             date = self._date(i)
             try:
-                s = self.client.get_stats(date)
+                s = self._get_stats(date)
                 dt = datetime.strptime(date, "%Y-%m-%d")
                 week.append({
                     "day": DAY_NAMES[dt.weekday()],
@@ -358,7 +390,7 @@ class GarminClient:
             date = self._date(i)
             try:
                 hrv_data = self.client.get_hrv_data(date)
-                stats = self.client.get_stats(date)
+                stats = self._get_stats(date)
                 dt = datetime.strptime(date, "%Y-%m-%d")
                 summary = hrv_data.get("hrvSummary", {})
                 week.append({
@@ -399,7 +431,7 @@ class GarminClient:
         for i in range(6, -1, -1):
             date = self._date(i)
             try:
-                s = self.client.get_stats(date)
+                s = self._get_stats(date)
                 dt = datetime.strptime(date, "%Y-%m-%d")
                 week.append({
                     "d": DAY_NAMES[dt.weekday()],
@@ -416,7 +448,7 @@ class GarminClient:
         for i in range(weeks * 7, 0, -7):
             date = self._date(i)
             try:
-                s = self.client.get_stats(date)
+                s = self._get_stats(date)
                 rhr = _safe(s.get("restingHeartRate"))
                 if rhr > 0:
                     dt = datetime.strptime(date, "%Y-%m-%d")
@@ -435,7 +467,7 @@ class GarminClient:
         for i in range(6, -1, -1):
             date = self._date(i)
             try:
-                s = self.client.get_stats(date)
+                s = self._get_stats(date)
                 dt = datetime.strptime(date, "%Y-%m-%d")
                 week.append({
                     "d": DAY_NAMES[dt.weekday()],
@@ -458,7 +490,7 @@ class GarminClient:
         ritmos, zonas) salen de pedir cada entreno por separado. Si ese detalle
         falla, el entreno se lista igual con lo que traiga el calendario.
         """
-        today = datetime.now().date()
+        today = ahora().date()
         until = today + timedelta(days=days)
 
         # El calendario va por meses (0-indexados en la API de Garmin)
@@ -525,7 +557,7 @@ class GarminClient:
         today = self._today()
         logger.info(f"Garmin snapshot: {today}")
         return {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": ahora().isoformat(),
             # Hoy
             "daily": self.get_daily(today),
             "sleep": self.get_sleep(today),

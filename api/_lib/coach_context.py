@@ -13,6 +13,7 @@ caché de prompt de la API funcione entre preguntas.
 from datetime import datetime
 
 from .analytics import build_analytics, WEEKDAYS
+from .tz import ahora
 
 DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
 
@@ -48,7 +49,7 @@ def build_context(garmin: dict, strava: dict, metrics: dict,
     readiness = metrics.get("readiness", {}) or {}
     summary = an.get("summary", {}) or {}
 
-    today = datetime.now().date()
+    today = ahora().date()
     parts = [f"# Dossier del atleta — {today.isoformat()} ({DIAS[today.weekday()]})\n"]
 
     # ─── Perfil ───

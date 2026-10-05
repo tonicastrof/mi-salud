@@ -1,4 +1,4 @@
-garminconnect>=0.2.25
+garminconnect==0.3.2
 requests>=2.31
 upstash-redis>=1.0.0
 anthropic>=1.6.0

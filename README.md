@@ -23,9 +23,10 @@ mi-salud-final/
 │   ├── activity.py           ← Endpoint: detalle + streams de una actividad
 │   ├── day.py                ← Endpoint: datos de Garmin de un día concreto
 │   ├── plan.py               ← Endpoint: próximos entrenos de Garmin Coach / calendario
+│   ├── login.py              ← Endpoint: inicio de sesión de la app (cookie)
 │   └── coach.py              ← Endpoint: entrenador IA (Claude)
-├── public/index.html         ← Landing del API
-├── dashboard.jsx             ← Frontend React (dark/light mode + Sync)
+├── public/index.html         ← La app (React sin compilar, se sirve tal cual)
+├── tests/                    ← Tests (pytest), se pasan en GitHub Actions
 ├── vercel.json
 ├── requirements.txt
 └── README.md
@@ -287,24 +288,19 @@ git push -u origin main
    - `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` / `STRAVA_REFRESH_TOKEN`
    - `UPSTASH_REDIS_URL` / `UPSTASH_REDIS_TOKEN`
    - `ANTHROPIC_API_KEY` ← **solo** si quieres el chat dentro de la app ([console.anthropic.com](https://console.anthropic.com) → API Keys). El botón «Copiar informe» funciona sin ella.
-   - `APP_SECRET` (opcional pero recomendado) ← contraseña para `/api/coach`
-   - `CRON_SECRET` (opcional pero recomendado) ← protege `/api/sync-all`. Vercel
-     Cron la manda sola como `Authorization: Bearer …`; sin ella el endpoint es
-     público y cualquiera puede dispararte el sync.
+   - `APP_SECRET` (opcional) ← contraseña de la app. Si no existe, la
+     contraseña es la de Garmin (`GARMIN_PASSWORD`). Todos los endpoints con
+     datos piden sesión; ver `api/_lib/auth.py`.
+   - `CRON_SECRET` (opcional) ← Vercel Cron la manda sola como
+     `Authorization: Bearer …`. Sin ella, `/api/sync-all` acepta llamadas sin
+     sesión pero como mucho una cada 30 minutos y sin devolver cifras.
    - `COACH_MODEL` (opcional) ← por defecto `claude-sonnet-5`
 3. Deploy
 
-### 6. Desplegar el Dashboard
-El archivo `dashboard.jsx` es el frontend React. Para desplegarlo:
-
-```bash
-npx create-react-app mi-salud-pwa
-# Reemplaza src/App.jsx con el contenido de dashboard.jsx
-# Cambia la línea API_URL al principio:
-#   const API_URL = "https://tu-proyecto.vercel.app";
-npm run build
-# Despliega en Vercel como segundo proyecto, o en GitHub Pages
-```
+### 6. La app
+`public/index.html` es la app entera (React por CDN, sin compilar): Vercel la
+sirve en la raíz del despliegue. La primera vez pide la contraseña (la de
+Garmin, o `APP_SECRET` si la definiste) y guarda la sesión en una cookie.
 
 ### 7. Instalar en el móvil
 

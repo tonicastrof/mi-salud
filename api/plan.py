@@ -17,6 +17,8 @@ from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 from _lib.garmin_client import GarminClient
 from _lib.cache import save, load
+from _lib.tz import ahora
+from _lib.auth import authorized, deny
 
 
 def refresh_plan(meta=None):
@@ -24,7 +26,7 @@ def refresh_plan(meta=None):
     if not g.connect():
         raise RuntimeError("No se pudo conectar con Garmin")
     data = {"workouts": g.get_scheduled_workouts(),
-            "synced_at": datetime.now().isoformat()}
+            "synced_at": ahora().isoformat()}
     save("garmin_plan", data)
     if meta is not None:
         meta["plan_synced"] = data["synced_at"]
@@ -33,6 +35,8 @@ def refresh_plan(meta=None):
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
+        if not authorized(self.headers):
+            return deny(self)
         q = parse_qs(urlparse(self.path).query)
         try:
             if q.get("refresh"):

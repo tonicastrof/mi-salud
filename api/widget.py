@@ -10,10 +10,11 @@ sys.path.insert(0, os.path.dirname(__file__))
 import json
 import re
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 from http.server import BaseHTTPRequestHandler
 from _lib.cache import load
 from _lib.metrics import current_body_battery
+from _lib.tz import hoy
+from _lib.auth import authorized, deny
 
 
 # Mismos tipos y colores que la tarjeta de la pestaña Coach (WTIPOS en index.html)
@@ -21,9 +22,11 @@ TIPOS = [
     (r"recover|recupera|regenera", "Recuperación", "#60A5FA"),
     (r"sprint|speed|velocidad", "Sprint", "#EC4899"),
     (r"anaer", "Anaeróbico", "#A855F7"),
-    (r"vo2|interval|series|\d+\s*[x×]\s*\d+", "VO₂ máx", "#EF4444"),
+    (r"vo2", "VO₂ máx", "#EF4444"),
     (r"threshold|umbral|lactate|lactato", "Umbral", "#F97316"),
     (r"tempo", "Tempo", "#F59E0B"),
+    # Series sin más pistas («6x800»): después de umbral/tempo, que también usan NxM
+    (r"interval|series|\d+\s*[x×]\s*\d+", "VO₂ máx", "#EF4444"),
     (r"long|larg|tirada", "Larga", "#14B8A6"),
     (r"base|aerob|easy|suave|rodaje", "Base", "#22C55E"),
 ]
@@ -31,8 +34,7 @@ TIPOS = [
 
 def _next_workout(workouts):
     """El entreno de hoy o, si no hay, el siguiente programado."""
-    # Vercel va en UTC: a las 00:30 en España aún sería «ayer»
-    today = datetime.now(ZoneInfo("Europe/Madrid")).date()
+    today = hoy()
     pending = sorted((w for w in workouts or [] if (w.get("date") or "") >= today.isoformat()),
                      key=lambda w: w["date"])
     if not pending:
@@ -60,6 +62,8 @@ def _next_workout(workouts):
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
+        if not authorized(self.headers):
+            return deny(self)
         g = load("garmin") or {}
         s = load("strava") or {}
         m = load("metrics") or {}

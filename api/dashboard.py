@@ -4,9 +4,12 @@ import json
 from http.server import BaseHTTPRequestHandler
 from _lib.cache import load
 from _lib.analytics import build_analytics
+from _lib.auth import authorized, deny
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
+        if not authorized(self.headers):
+            return deny(self)
         g = load("garmin") or {}
         s = load("strava") or {}
         m = load("metrics") or {}

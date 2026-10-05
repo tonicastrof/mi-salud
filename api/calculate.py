@@ -6,9 +6,13 @@ from http.server import BaseHTTPRequestHandler
 from _lib.cache import save, load
 from _lib.metrics import calculate_all
 from _lib.archive import archive_day
+from _lib.tz import ahora
+from _lib.auth import authorized, deny
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
+        if not authorized(self.headers):
+            return deny(self)
         try:
             garmin = load("garmin") or {}
             strava = load("strava") or {}
@@ -16,7 +20,7 @@ class handler(BaseHTTPRequestHandler):
                 self._r(404, {"error": "No hay datos. Pulsa Sync primero."})
                 return
             metrics = calculate_all(garmin, strava)
-            metrics["calculated_at"] = datetime.now().isoformat()
+            metrics["calculated_at"] = ahora().isoformat()
             save("metrics", metrics)
             meta = load("meta") or {}
             meta["metrics_calculated"] = metrics["calculated_at"]

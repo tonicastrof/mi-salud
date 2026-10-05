@@ -5,16 +5,20 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler
 from _lib.garmin_client import GarminClient
 from _lib.cache import save, load
+from _lib.tz import ahora
+from _lib.auth import authorized, deny
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
+        if not authorized(self.headers):
+            return deny(self)
         try:
             g = GarminClient()
             if not g.connect():
                 self._r(503, {"error": "No se pudo conectar con Garmin"})
                 return
             data = g.get_full_snapshot()
-            data["synced_at"] = datetime.now().isoformat()
+            data["synced_at"] = ahora().isoformat()
             save("garmin", data)
             meta = load("meta") or {}
             meta["garmin_synced"] = data["synced_at"]
