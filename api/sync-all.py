@@ -13,10 +13,10 @@ Si `CRON_SECRET` está definida, exige `Authorization: Bearer <secreto>` — que
 es justo la cabecera que manda Vercel Cron. Sin ella el endpoint es público y
 cualquiera puede disparar un login de Garmin y la descarga de 200 actividades.
 
-`?steps=garmin,strava` limita qué pasos corren. Los tres juntos caben de sobra
-en los 60s del plan Hobby, pero si algún día no cupieran se puede partir en
-varios crons (`?steps=garmin` y luego `?steps=strava,calculate`) sin tocar
-código.
+`?steps=garmin,strava` limita qué pasos corren (garmin, plan, strava,
+calculate). Todos juntos caben de sobra en los 60s del plan Hobby, pero si
+algún día no cupieran se puede partir en varios crons (`?steps=garmin,plan` y
+luego `?steps=strava,calculate`) sin tocar código.
 """
 
 import sys, os
@@ -43,10 +43,22 @@ def _authorized(headers):
     return headers.get("X-App-Secret") == secret
 
 
+_garmin = None
+
+
+def _garmin_client():
+    # Una sola sesión para los pasos de Garmin: Garmin castiga los logins seguidos.
+    global _garmin
+    if _garmin is None:
+        g = GarminClient()
+        if not g.connect():
+            raise RuntimeError("No se pudo conectar con Garmin")
+        _garmin = g
+    return _garmin
+
+
 def _sync_garmin(meta):
-    g = GarminClient()
-    if not g.connect():
-        raise RuntimeError("No se pudo conectar con Garmin")
+    g = _garmin_client()
     data = g.get_full_snapshot()
     data["synced_at"] = datetime.now().isoformat()
     save("garmin", data)
@@ -64,6 +76,16 @@ def _sync_strava(meta):
     save("strava", data)
     meta["strava_synced"] = data["synced_at"]
     return {"activities": len(data.get("activities", []))}
+
+
+def _sync_plan(meta):
+    # Paso propio: si el calendario falla, sueño/HRV ya están guardados.
+    g = _garmin_client()
+    data = {"workouts": g.get_scheduled_workouts(),
+            "synced_at": datetime.now().isoformat()}
+    save("garmin_plan", data)
+    meta["plan_synced"] = data["synced_at"]
+    return {"workouts": len(data["workouts"])}
 
 
 def _calculate(meta):
@@ -90,11 +112,14 @@ def _calculate(meta):
             "archived_days": archived}
 
 
-STEPS = (("garmin", _sync_garmin), ("strava", _sync_strava), ("calculate", _calculate))
+STEPS = (("garmin", _sync_garmin), ("plan", _sync_plan), ("strava", _sync_strava),
+         ("calculate", _calculate))
 
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
+        global _garmin
+        _garmin = None  # nada de arrastrar la sesión de una ejecución anterior
         if not _authorized(self.headers):
             self._r(401, {"error": "No autorizado"})
             return
@@ -102,7 +127,7 @@ class handler(BaseHTTPRequestHandler):
         wanted = (parse_qs(urlparse(self.path).query).get("steps", [""])[0] or "").strip()
         only = {p.strip() for p in wanted.split(",") if p.strip()} if wanted else None
         if only and not only <= {name for name, _ in STEPS}:
-            self._r(400, {"error": "steps admite: garmin, strava, calculate"})
+            self._r(400, {"error": "steps admite: garmin, plan, strava, calculate"})
             return
         steps = [(n, f) for n, f in STEPS if not only or n in only]
 

@@ -22,6 +22,7 @@ mi-salud-final/
 │   ├── widget.py             ← Endpoint: resumen mínimo para el widget de Android
 │   ├── activity.py           ← Endpoint: detalle + streams de una actividad
 │   ├── day.py                ← Endpoint: datos de Garmin de un día concreto
+│   ├── plan.py               ← Endpoint: próximos entrenos de Garmin Coach / calendario
 │   └── coach.py              ← Endpoint: entrenador IA (Claude)
 ├── public/index.html         ← Landing del API
 ├── dashboard.jsx             ← Frontend React (dark/light mode + Sync)

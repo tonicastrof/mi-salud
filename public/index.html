@@ -315,8 +315,72 @@ function Graficas({an,t}){
   );
 }
 
+// ─── Próximos entrenos de Garmin Coach ───
+const STEP_C={warmup:A.steps,cooldown:A.steps,interval:A.run,recovery:A.bat,rest:A.bat};
+const SPORT_I={running:"🏃",trail_running:"🏃",treadmill_running:"🏃",cycling:"🚴",indoor_cycling:"🚴",virtual_ride:"🚴",hiking:"⛰️",walking:"🚶",strength_training:"🏋️",swimming:"🏊",lap_swimming:"🏊"};
+function cuando(date){
+  const d=new Date(date+"T12:00:00"),hoy=new Date();hoy.setHours(12,0,0,0);
+  const n=Math.round((d-hoy)/864e5);
+  if(n===0)return"Hoy";if(n===1)return"Mañana";
+  return d.toLocaleDateString("es",{weekday:"short",day:"numeric",month:"short"});
+}
+function Steps({steps,t}){
+  return h("div",{style:{display:"flex",flexDirection:"column",gap:5}},
+    (steps||[]).map((st,i)=>st.repeat
+      ? h("div",{key:i,style:{border:"1px dashed "+t.bd,borderRadius:10,padding:"6px 8px"}},
+          h("div",{style:{fontSize:10,fontWeight:700,color:t.sb,marginBottom:5}},"🔁 "+st.repeat+" veces"),
+          h(Steps,{steps:st.steps,t}))
+      : h("div",{key:i,style:{display:"flex",gap:8,alignItems:"stretch"}},
+          h("div",{style:{width:3,borderRadius:2,background:STEP_C[st.type]||t.mt,flex:"0 0 auto"}}),
+          h("div",{style:{flex:1,minWidth:0,padding:"1px 0"}},
+            h("div",{style:{fontSize:12,color:t.tx}},h("strong",null,st.label),st.duration?" · "+st.duration:""),
+            st.target&&h("div",{style:{fontSize:11,color:t.sb}},"🎯 "+st.target),
+            st.note&&h("div",{style:{fontSize:10,color:t.mt,marginTop:1}},st.note)))));
+}
+function Plan({t,workouts,syncedAt,onAsk}){
+  const[ws,setWs]=useState(workouts||[]);
+  const[at,setAt]=useState(syncedAt);
+  const[open,setOpen]=useState(null);
+  const[busy,setBusy]=useState(false);
+  const[err,setErr]=useState("");
+  useEffect(()=>{setWs(workouts||[]);setAt(syncedAt)},[workouts,syncedAt]);
+  const refrescar=async()=>{
+    setBusy(true);setErr("");
+    try{const r=await fetch("/api/plan?refresh=1");const j=await r.json();
+      if(!r.ok)setErr(j.error||"Error "+r.status);else{setWs(j.workouts||[]);setAt(j.synced_at);setOpen(null)}}
+    catch(e){setErr("No se pudo conectar con Garmin")}
+    setBusy(false);
+  };
+  return h("div",{style:{background:t.cd,border:"1px solid "+t.bd,borderRadius:14,padding:"14px 16px",marginBottom:12}},
+    h("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:4}},
+      h("div",{style:{fontSize:13,fontWeight:700,color:t.tx}},"📅 Próximos entrenos de Garmin"),
+      h("button",{onClick:refrescar,disabled:busy,style:{flex:"0 0 auto",border:"none",background:t.ph,borderRadius:8,padding:"4px 9px",color:t.sb,cursor:"pointer",fontSize:10,fontWeight:600}},busy?"⏳":"↻ Actualizar")),
+    h("div",{style:{fontSize:11,color:t.mt,marginBottom:10}},
+      ws.length?"Lo que tienes programado en Garmin Coach y el calendario para las próximas 2 semanas. Toca uno para ver los pasos.":
+      at?"No tienes nada programado en Garmin para las próximas 2 semanas.":"Aún no se han descargado. Pulsa Actualizar o Sync."),
+    err&&h("div",{style:{background:t.bR.b,color:t.bR.f,borderRadius:8,padding:"6px 10px",fontSize:11,marginBottom:8}},"⚠️ "+err),
+    ws.map((w,i)=>{
+      const abierto=open===i;
+      const extra=[w.duration_sec?Math.round(w.duration_sec/60)+" min":null,w.distance_m?(w.distance_m/1000).toFixed(1).replace(/\.0$/,"")+" km":null].filter(Boolean).join(" · ");
+      return h("div",{key:i,style:{borderTop:i?"1px solid "+t.bd:"none"}},
+        h("div",{onClick:()=>setOpen(abierto?null:i),style:{display:"flex",alignItems:"center",gap:10,padding:"9px 0",cursor:"pointer"}},
+          h("div",{style:{width:34,height:34,borderRadius:8,background:(SC[w.sport]||A.fit)+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flex:"0 0 auto"}},SPORT_I[w.sport_key]||SI[w.sport]||"🏋️"),
+          h("div",{style:{flex:1,minWidth:0}},
+            h("div",{style:{fontSize:12,fontWeight:600,color:t.tx,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},w.title),
+            h("div",{style:{fontSize:10,color:t.sb}},cuando(w.date)+(extra?" · "+extra:""))),
+          w.coach&&h("span",{style:{flex:"0 0 auto",padding:"2px 7px",borderRadius:10,fontSize:9,fontWeight:700,background:t.bG.b,color:t.bG.f}},"Coach"),
+          h("span",{style:{fontSize:14,color:t.mt,transform:abierto?"rotate(90deg)":"none",transition:"transform 0.2s"}},"›")),
+        abierto&&h("div",{style:{padding:"0 0 12px 44px",display:"flex",flexDirection:"column",gap:8}},
+          w.phrase&&h("div",{style:{fontSize:10,fontWeight:700,color:A.fit,textTransform:"uppercase",letterSpacing:"0.05em"}},String(w.phrase).replace(/_/g," ")),
+          w.description&&h("div",{style:{fontSize:12,color:t.sb,lineHeight:1.5}},w.description),
+          (w.steps||[]).length?h(Steps,{steps:w.steps,t}):h("div",{style:{fontSize:11,color:t.mt}},"Garmin no ha dado el detalle de los pasos de este entreno."),
+          onAsk&&h("button",{onClick:()=>onAsk(w),style:{alignSelf:"flex-start",border:"none",background:t.ph,borderRadius:8,padding:"5px 10px",color:t.sb,cursor:"pointer",fontSize:11,fontWeight:600}},"🤖 Preguntar por este entreno")));
+    }),
+    at&&h("div",{style:{fontSize:9,color:t.mt,marginTop:8}},"Actualizado "+new Date(at).toLocaleString("es",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})));
+}
+
 // ─── Entrenador IA ───
-function Coach({t,ctx,onClearCtx}){
+function Coach({t,ctx,onClearCtx,plan,planAt}){
   const[msgs,setMsgs]=useState(()=>{try{return JSON.parse(localStorage.getItem("coach_chat")||"[]")}catch(e){return[]}});
   const[input,setInput]=useState(ctx?("Analiza esta sesión: "+ctx.name):"");
   const[busy,setBusy]=useState(false);
@@ -376,6 +440,12 @@ function Coach({t,ctx,onClearCtx}){
     }catch(e){setErr("No se pudo generar el informe");setCopia("")}
   },[secret,ctx]);
 
+  // Deja la pregunta escrita; si el chat no está activo, sirve para copiarla junto al informe
+  const preguntarEntreno=useCallback((w)=>{
+    setInput("¿Cómo afronto el entreno «"+w.title+"» de "+cuando(w.date).toLowerCase()+" según cómo voy de fatiga y sueño?");
+    if(end.current)end.current.scrollIntoView({behavior:"smooth",block:"end"});
+  },[]);
+
   const disabled=info&&info.enabled===false;
   return h("div",{style:{display:"flex",flexDirection:"column",minHeight:"64vh"}},
     ctx&&h("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,background:t.cd,border:"1px solid "+t.bd,borderLeft:"3px solid "+(SC[ctx.sport]||A.fit),borderRadius:10,padding:"8px 12px",marginBottom:10}},
@@ -385,7 +455,7 @@ function Coach({t,ctx,onClearCtx}){
     h("div",{style:{background:t.cd,border:"1px solid "+t.bd,borderRadius:14,padding:"14px 16px",marginBottom:12}},
       h("div",{style:{fontSize:13,fontWeight:700,color:t.tx,marginBottom:4}},"📋 Preguntar en la app de Claude"),
       h("div",{style:{fontSize:12,color:t.sb,lineHeight:1.5,marginBottom:10}},
-        "Copia tu informe completo —Garmin de hoy, carga, calendario, volumen y tus últimas sesiones— y pégalo en Claude. Te responde como entrenador sin gastar API."),
+        "Copia tu informe completo —Garmin de hoy, carga, calendario, volumen, tus últimas sesiones y los entrenos que tienes programados— y pégalo en Claude. Te responde como entrenador sin gastar API."),
       h("div",{style:{display:"flex",gap:7}},
         h("button",{onClick:copiar,disabled:copia==="cargando",style:{flex:1,padding:"11px 0",border:"none",borderRadius:12,cursor:"pointer",fontSize:13,fontWeight:700,
           background:copia==="ok"?A.bat:"linear-gradient(135deg,#3b82f6,#8b5cf6)",color:"#fff"}},
@@ -402,6 +472,8 @@ function Coach({t,ctx,onClearCtx}){
         h("div",{style:{fontSize:10,fontWeight:700,color:t.mt,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:7}},"Luego pregúntale, por ejemplo"),
         h("div",{style:{display:"flex",gap:5,flexWrap:"wrap"}},
           info.suggestions.map((s,i)=>h("span",{key:i,style:{padding:"5px 10px",borderRadius:20,fontSize:11,background:t.ph,color:t.sb}},s))))),
+    // Próximos entrenos programados en Garmin (Garmin Coach)
+    h(Plan,{t,workouts:plan,syncedAt:planAt,onAsk:disabled?null:preguntarEntreno}),
     disabled&&h("div",{style:{background:t.cd,border:"1px solid "+t.bd,borderRadius:12,padding:"12px 16px",marginBottom:12}},
       h("div",{style:{fontSize:12,fontWeight:700,color:t.tx,marginBottom:4}},"💬 Chat dentro de la app"),
       h("div",{style:{fontSize:11,color:t.sb,lineHeight:1.5}},"Si además quieres chatear aquí sin salir de la app, añade ",h("code",{style:{background:t.ph,padding:"1px 5px",borderRadius:4}},"ANTHROPIC_API_KEY")," en Vercel (se cobra por uso, aparte de tu suscripción).")),
@@ -461,6 +533,7 @@ function App(){
 
   const sync=useCallback(async()=>{
     setSyncing(true);setMsg("Garmin...");try{await api("sync-garmin")}catch(e){}
+    setMsg("Plan Garmin...");try{await api("plan?refresh=1")}catch(e){}
     setMsg("Strava...");try{await api("sync-strava")}catch(e){}
     setMsg("Calculando...");try{await api("calculate")}catch(e){}
     setMsg("Listo ✓");load();setTimeout(()=>{setSyncing(false);setMsg("")},1000);
@@ -702,7 +775,7 @@ function App(){
       ),
 
       // === COACH ===
-      tab==="coach"&&h(Coach,{t,ctx:coachCtx,onClearCtx:()=>setCoachCtx(null)})
+      tab==="coach"&&h(Coach,{t,ctx:coachCtx,onClearCtx:()=>setCoachCtx(null),plan:data.scheduled_workouts,planAt:data.meta?.plan_synced})
     ),
     sel&&h(Detail,{a:sel,onClose:()=>setSel(null),t,onAsk:askCoach}),
     h("div",{style:{textAlign:"center",padding:"0 0 20px",fontSize:10,color:t.mt}},"Garmin + Strava · "+(data.profile?.name||"Mi Salud"))

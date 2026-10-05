@@ -248,3 +248,50 @@ def _week_series(rows: list, label_key: str, value_key: str, unit: str = "") -> 
     bits = [f"{r.get(label_key)} {r.get(value_key)}{unit}"
             for r in rows if r.get(value_key) not in (None, "")]
     return ", ".join(bits)
+
+
+def _steps_text(steps, indent="  "):
+    lines = []
+    for st in steps or []:
+        if "repeat" in st:
+            lines.append(f"{indent}- {st['repeat']}×:")
+            lines.extend(_steps_text(st.get("steps"), indent + "  "))
+            continue
+        bits = [st.get("label"), st.get("duration"), st.get("target")]
+        txt = " · ".join(b for b in bits if b)
+        if st.get("note"):
+            txt += f" ({st['note']})"
+        lines.append(f"{indent}- {txt}")
+    return lines
+
+
+def build_plan_block(workouts) -> str:
+    """Próximos entrenos programados en Garmin (Garmin Coach o a mano)."""
+    if not workouts:
+        return ""
+    lines = []
+    for w in workouts:
+        try:
+            d = datetime.strptime(w["date"], "%Y-%m-%d").date()
+            when = f"{DIAS[d.weekday()]} {d.isoformat()}"
+        except (KeyError, ValueError):
+            when = w.get("date") or "?"
+        extra = []
+        if w.get("duration_sec"):
+            extra.append(f"~{round(w['duration_sec'] / 60)} min")
+        if w.get("distance_m"):
+            extra.append(f"~{w['distance_m'] / 1000:.1f} km")
+        if w.get("phrase"):
+            extra.append(str(w["phrase"]).replace("_", " ").lower())
+        head = f"- {when}: **{w.get('title')}** ({w.get('sport_key') or w.get('sport')}"
+        head += (", " + ", ".join(extra) if extra else "") + ")"
+        if w.get("coach"):
+            head += " [Garmin Coach]"
+        lines.append(head)
+        if w.get("description"):
+            lines.append(f"  {w['description']}")
+        lines.extend(_steps_text(w.get("steps")))
+    return ("## Próximos entrenos programados en Garmin\n"
+            "Esto es lo que el plan del reloj tiene previsto. Tenlo en cuenta al "
+            "aconsejar: si la fatiga o el sueño no acompañan, dilo y propón cómo "
+            "adaptarlo.\n" + "\n".join(lines) + "\n")

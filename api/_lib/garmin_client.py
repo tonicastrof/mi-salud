@@ -447,6 +447,78 @@ class GarminClient:
                 pass
         return week
 
+    # ─── ENTRENOS PROGRAMADOS (Garmin Coach + calendario) ───
+
+    def get_scheduled_workouts(self, days=14, max_details=12):
+        """
+        Próximos entrenos del calendario de Garmin: los de un plan de Garmin
+        Coach (adaptativos, van por UUID) y los que programes tú a mano.
+
+        El calendario solo trae título, fecha y deporte; los pasos (series,
+        ritmos, zonas) salen de pedir cada entreno por separado. Si ese detalle
+        falla, el entreno se lista igual con lo que traiga el calendario.
+        """
+        today = datetime.now().date()
+        until = today + timedelta(days=days)
+
+        # El calendario va por meses (0-indexados en la API de Garmin)
+        months = {(today.year, today.month), (until.year, until.month)}
+        items = []
+        for year, month in sorted(months):
+            try:
+                cal = self.client.connectapi(
+                    f"/calendar-service/year/{year}/month/{month - 1}") or {}
+                items.extend(cal.get("calendarItems") or [])
+            except Exception as e:
+                logger.error(f"calendar {year}-{month}: {e}")
+
+        upcoming, seen = [], set()
+        for it in items:
+            if not isinstance(it, dict):
+                continue
+            kind = str(it.get("itemType") or "")
+            is_workout = (it.get("workoutUuid") or it.get("workoutId")
+                          or "workout" in kind.lower())
+            if not is_workout or kind == "activity":
+                continue
+            date = str(it.get("date") or "")[:10]
+            if not date or not (today.isoformat() <= date <= until.isoformat()):
+                continue
+            key = (date, it.get("workoutUuid") or it.get("workoutId") or it.get("id"))
+            if key in seen:
+                continue
+            seen.add(key)
+            upcoming.append(it)
+
+        upcoming.sort(key=lambda it: str(it.get("date")))
+        out = []
+        for i, it in enumerate(upcoming):
+            detail = self._workout_detail(it) if i < max_details else None
+            out.append(_parse_workout(it, detail))
+        return out
+
+    def _workout_detail(self, item):
+        # Garmin Coach va por UUID; los programados a mano, por id de entreno o
+        # de programación. Se prueba en ese orden hasta que uno conteste.
+        urls = []
+        if item.get("workoutUuid"):
+            urls.append(f"/workout-service/fbt-adaptive/{item['workoutUuid']}")
+        if item.get("workoutId"):
+            urls.append(f"/workout-service/workout/{item['workoutId']}")
+        if item.get("id"):
+            urls.append(f"/workout-service/schedule/{item['id']}")
+        for url in urls:
+            try:
+                d = self.client.connectapi(url)
+            except Exception as e:
+                logger.error(f"workout detail {url}: {e}")
+                continue
+            if isinstance(d, dict) and isinstance(d.get("workout"), dict):
+                d = d["workout"]
+            if isinstance(d, dict) and d:
+                return d
+        return None
+
     # ─── SNAPSHOT ───
 
     def get_full_snapshot(self):
@@ -472,3 +544,153 @@ class GarminClient:
             "rhr_trend": self.get_rhr_trend(),
             "body_battery_week": self.get_body_battery_week(),
         }
+
+
+# ─── Entrenos programados: de la estructura de Garmin a algo legible ───
+
+STEP_NAMES = {
+    "warmup": "Calentamiento", "cooldown": "Vuelta a la calma",
+    "interval": "Serie", "recovery": "Recuperación", "rest": "Descanso",
+    "run": "Carrera", "other": "Otro", "main": "Principal",
+}
+
+SPORT_KEYS = {
+    "running": "Run", "trail_running": "Run", "treadmill_running": "Run",
+    "cycling": "Ride", "indoor_cycling": "Ride", "virtual_ride": "Ride",
+    "hiking": "Hike", "walking": "Walk", "strength_training": "Strength",
+    "swimming": "Swim", "lap_swimming": "Swim",
+}
+
+
+def _fmt_secs(sec):
+    sec = int(round(sec or 0))
+    h, rest = divmod(sec, 3600)
+    m, s = divmod(rest, 60)
+    if h:
+        return f"{h}h{m:02d}"
+    return f"{m}:{s:02d}" if s else f"{m} min"
+
+
+def _fmt_dist(m):
+    m = float(m or 0)
+    if m >= 1000:
+        km = m / 1000
+        return f"{km:.2f}".rstrip("0").rstrip(".") + " km"
+    return f"{int(round(m))} m"
+
+
+def _fmt_pace(speed):
+    """m/s → min:ss /km"""
+    if not speed or speed <= 0:
+        return None
+    sec = 1000 / speed
+    return f"{int(sec // 60)}:{int(round(sec % 60)):02d}"
+
+
+_KEYS = {"stepType": "stepTypeKey", "endCondition": "conditionTypeKey",
+         "targetType": "workoutTargetTypeKey", "sportType": "sportTypeKey"}
+
+
+def _key(obj, field):
+    """Garmin anida los tipos: {"stepType": {"stepTypeKey": "warmup", ...}}."""
+    v = (obj or {}).get(field)
+    if isinstance(v, dict):
+        return str(v.get(_KEYS[field]) or "")
+    return str(v or "")
+
+
+def _step_duration(step):
+    cond = _key(step, "endCondition")
+    val = step.get("endConditionValue")
+    if cond == "time" and val:
+        return _fmt_secs(val)
+    if cond == "distance" and val:
+        return _fmt_dist(val)
+    if cond == "lap.button":
+        return "hasta pulsar vuelta"
+    if cond == "heart.rate" and val:
+        return f"hasta {int(val)} ppm"
+    if cond == "calories" and val:
+        return f"{int(val)} kcal"
+    if cond == "reps" and val:
+        return f"{int(val)} reps"
+    return None
+
+
+def _step_target(step):
+    kind = _key(step, "targetType")
+    lo, hi = step.get("targetValueOne"), step.get("targetValueTwo")
+    zone = step.get("zoneNumber")
+    if not kind or kind == "no.target":
+        return None
+    if kind == "pace.zone":
+        if lo and hi:
+            # Velocidad más alta = ritmo más rápido: el rango va de rápido a lento
+            fast, slow = _fmt_pace(max(lo, hi)), _fmt_pace(min(lo, hi))
+            return f"{fast}–{slow} /km"
+        return f"ritmo Z{zone}" if zone else None
+    if kind == "speed.zone":
+        if lo and hi:
+            return f"{min(lo, hi) * 3.6:.1f}–{max(lo, hi) * 3.6:.1f} km/h"
+        return f"velocidad Z{zone}" if zone else None
+    if kind == "heart.rate.zone":
+        if zone:
+            return f"FC zona {zone}"
+        if lo and hi:
+            return f"{int(min(lo, hi))}–{int(max(lo, hi))} ppm"
+    if kind in ("power.zone", "power"):
+        if zone:
+            return f"potencia Z{zone}"
+        if lo and hi:
+            return f"{int(min(lo, hi))}–{int(max(lo, hi))} W"
+    if kind == "cadence" and lo and hi:
+        return f"cadencia {int(min(lo, hi))}–{int(max(lo, hi))}"
+    return None
+
+
+def _parse_steps(steps):
+    out = []
+    for st in sorted(steps or [], key=lambda x: x.get("stepOrder") or 0):
+        if not isinstance(st, dict):
+            continue
+        if st.get("type") == "RepeatGroupDTO" or st.get("workoutSteps"):
+            out.append({
+                "repeat": int(st.get("numberOfIterations") or st.get("endConditionValue") or 1),
+                "steps": _parse_steps(st.get("workoutSteps")),
+            })
+            continue
+        kind = _key(st, "stepType")
+        out.append({
+            "type": kind,
+            "label": STEP_NAMES.get(kind, kind.capitalize() or "Paso"),
+            "duration": _step_duration(st),
+            "target": _step_target(st),
+            "note": st.get("description") or None,
+        })
+    return out
+
+
+def _parse_workout(item, detail):
+    """Une la entrada del calendario con el detalle del entreno (si lo hay)."""
+    d = detail if isinstance(detail, dict) else {}
+    sport = (_key(d, "sportType") or item.get("sportTypeKey") or "").lower()
+    steps = []
+    for seg in d.get("workoutSegments") or []:
+        steps.extend(_parse_steps(seg.get("workoutSteps")))
+
+    duration = (d.get("estimatedDurationInSecs") or item.get("duration")
+                or d.get("workoutDuration"))
+    distance = (d.get("estimatedDistanceInMeters") or item.get("distance")
+                or d.get("workoutDistance"))
+    return {
+        "date": str(item.get("date"))[:10],
+        "title": d.get("workoutName") or item.get("title") or "Entreno",
+        "sport": SPORT_KEYS.get(sport, sport.capitalize() or "Other"),
+        "sport_key": sport,
+        "coach": bool(item.get("workoutUuid")) or "fbt" in str(item.get("itemType", "")).lower(),
+        "description": d.get("description") or item.get("description") or None,
+        "phrase": d.get("workoutPhrase") or d.get("trainingEffectLabel") or None,
+        "duration_sec": int(duration) if duration else None,
+        "distance_m": int(distance) if distance else None,
+        "steps": steps,
+    }

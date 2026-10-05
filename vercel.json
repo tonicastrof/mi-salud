@@ -49,6 +49,13 @@
       "use": "@vercel/python"
     },
     {
+      "src": "api/plan.py",
+      "use": "@vercel/python",
+      "config": {
+        "maxDuration": 60
+      }
+    },
+    {
       "src": "public/**",
       "use": "@vercel/static"
     }
@@ -93,6 +100,10 @@
     {
       "src": "/api/history(.*)",
       "dest": "/api/history.py"
+    },
+    {
+      "src": "/api/plan(.*)",
+      "dest": "/api/plan.py"
     },
     {
       "src": "/(.*)",

@@ -11,6 +11,7 @@ class handler(BaseHTTPRequestHandler):
         s = load("strava") or {}
         m = load("metrics") or {}
         meta = load("meta") or {}
+        plan = load("garmin_plan") or {}
 
         payload = {
             "meta": meta,
@@ -33,6 +34,8 @@ class handler(BaseHTTPRequestHandler):
             "stress_week": g.get("stress_week", []),
             "rhr_trend": g.get("rhr_trend", []),
             "body_battery_week": g.get("body_battery_week", []),
+            # Garmin Coach / calendario
+            "scheduled_workouts": plan.get("workouts", []),
             # Strava
             "activities": s.get("activities", []),
             "analytics": build_analytics(s.get("activities", [])),

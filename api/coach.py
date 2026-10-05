@@ -24,7 +24,7 @@ from urllib.parse import urlparse, parse_qs
 
 from _lib.cache import load
 from _lib.analytics import build_analytics
-from _lib.coach_context import build_context
+from _lib.coach_context import build_context, build_plan_block
 
 MODEL = os.getenv("COACH_MODEL", "claude-sonnet-5")
 MAX_TOKENS = 3000
@@ -238,6 +238,9 @@ class handler(BaseHTTPRequestHandler):
         metrics = load("metrics") or {}
         activities = strava.get("activities", []) or []
         context = build_context(garmin, strava, metrics, build_analytics(activities))
+        plan = build_plan_block((load("garmin_plan") or {}).get("workouts"))
+        if plan:
+            context += "\n" + plan
 
         if activity_id:
             detail = self._activity_detail(activity_id, activities)
