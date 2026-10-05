@@ -8,9 +8,54 @@ solo los números que caben en el widget.
 import sys, os
 sys.path.insert(0, os.path.dirname(__file__))
 import json
+import re
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from http.server import BaseHTTPRequestHandler
 from _lib.cache import load
 from _lib.metrics import current_body_battery
+
+
+# Mismos tipos y colores que la tarjeta de la pestaña Coach (WTIPOS en index.html)
+TIPOS = [
+    (r"recover|recupera|regenera", "Recuperación", "#60A5FA"),
+    (r"sprint|speed|velocidad", "Sprint", "#EC4899"),
+    (r"anaer", "Anaeróbico", "#A855F7"),
+    (r"vo2|interval|series|\d+\s*[x×]\s*\d+", "VO₂ máx", "#EF4444"),
+    (r"threshold|umbral|lactate|lactato", "Umbral", "#F97316"),
+    (r"tempo", "Tempo", "#F59E0B"),
+    (r"long|larg|tirada", "Larga", "#14B8A6"),
+    (r"base|aerob|easy|suave|rodaje", "Base", "#22C55E"),
+]
+
+
+def _next_workout(workouts):
+    """El entreno de hoy o, si no hay, el siguiente programado."""
+    # Vercel va en UTC: a las 00:30 en España aún sería «ayer»
+    today = datetime.now(ZoneInfo("Europe/Madrid")).date()
+    pending = sorted((w for w in workouts or [] if (w.get("date") or "") >= today.isoformat()),
+                     key=lambda w: w["date"])
+    if not pending:
+        return None
+    w = pending[0]
+    day = datetime.strptime(w["date"], "%Y-%m-%d").date()
+    if day == today:
+        when = "Hoy"
+    elif day == today + timedelta(days=1):
+        when = "Mañana"
+    else:
+        when = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"][day.weekday()] + f" {day.day}"
+    txt = f"{w.get('phrase') or ''} {w.get('title') or ''}".lower().replace("_", " ")
+    kind, color = next(((l, c) for r, l, c in TIPOS if re.search(r, txt)), ("", "#94A3B8"))
+    return {
+        "when": when,
+        "is_today": day == today,
+        "title": w.get("title") or "Entreno",
+        "kind": kind,
+        "color": color,
+        "minutes": round(w["duration_sec"] / 60) if w.get("duration_sec") else 0,
+        "distance_km": round(w["distance_m"] / 1000, 1) if w.get("distance_m") else 0,
+    }
 
 
 class handler(BaseHTTPRequestHandler):
@@ -19,6 +64,7 @@ class handler(BaseHTTPRequestHandler):
         s = load("strava") or {}
         m = load("metrics") or {}
         meta = load("meta") or {}
+        plan = load("garmin_plan") or {}
 
         daily = g.get("daily") or {}
         sleep = g.get("sleep") or {}
@@ -64,6 +110,7 @@ class handler(BaseHTTPRequestHandler):
                 "distance": last.get("distance") or 0,
                 "time": last.get("time") or "",
             } if last else None,
+            "workout": _next_workout(plan.get("workouts")),
         }
 
         body = json.dumps(payload, default=str).encode()

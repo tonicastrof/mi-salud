@@ -7,8 +7,10 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
+import android.view.View;
 import android.widget.RemoteViews;
 
 import org.json.JSONObject;
@@ -131,6 +133,7 @@ public class SaludWidget extends AppWidgetProvider {
             v.setTextViewText(R.id.widget_readiness, "—");
             v.setTextViewText(R.id.widget_form, note != null ? note : "Abre la app y sincroniza");
             v.setTextViewText(R.id.widget_updated, "");
+            v.setViewVisibility(R.id.widget_workout_row, View.GONE);
             wireClicks(context, v, widgetId);
             return v;
         }
@@ -148,9 +151,45 @@ public class SaludWidget extends AppWidgetProvider {
 
         v.setTextViewText(R.id.widget_form, note != null ? note : form(d));
         v.setTextViewText(R.id.widget_updated, ago(at));
+        workout(v, d.optJSONObject("workout"));
 
         wireClicks(context, v, widgetId);
         return v;
+    }
+
+    /** "● Umbral" en su color + "Hoy · Series 5x1000 · 50 min". Sin plan, la fila se oculta. */
+    private static void workout(RemoteViews v, JSONObject w) {
+        if (w == null) {
+            v.setViewVisibility(R.id.widget_workout_row, View.GONE);
+            return;
+        }
+        int color;
+        try {
+            color = Color.parseColor(w.optString("color", "#94A3B8"));
+        } catch (IllegalArgumentException e) {
+            color = Color.parseColor("#94A3B8");
+        }
+        String kind = w.optString("kind", "");
+        v.setTextViewText(R.id.widget_workout_kind, kind.isEmpty() ? "●" : "● " + kind);
+        v.setTextColor(R.id.widget_workout_kind, color);
+
+        StringBuilder sb = new StringBuilder(w.optString("when", ""));
+        String title = w.optString("title", "");
+        // Si el título es solo el tipo ("Base"), no repetirlo
+        if (!title.isEmpty() && !title.equalsIgnoreCase(kind)) {
+            sb.append(" · ").append(title);
+        }
+        int min = w.optInt("minutes", 0);
+        double km = w.optDouble("distance_km", 0);
+        if (min > 0) {
+            sb.append(" · ").append(min).append(" min");
+        } else if (km > 0) {
+            sb.append(String.format(ES, " · %.1f km", km));
+        }
+        v.setTextViewText(R.id.widget_workout, sb.toString());
+        v.setTextColor(R.id.widget_workout,
+                w.optBoolean("is_today", false) ? Color.parseColor("#F1F5F9") : Color.parseColor("#94A3B8"));
+        v.setViewVisibility(R.id.widget_workout_row, View.VISIBLE);
     }
 
     private static String form(JSONObject d) {

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Mi Salud</string>
-    <string name="widget_description">Pasos, Body Battery, FC en reposo, sueño y forma del día</string>
+    <string name="widget_description">Pasos, Body Battery, FC en reposo, sueño, forma del día y el entreno que toca</string>
     <string name="widget_battery">Batería</string>
     <string name="widget_hr">FC reposo</string>
     <string name="widget_sleep">Sueño</string>
