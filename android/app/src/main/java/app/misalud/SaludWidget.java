@@ -188,8 +188,29 @@ public class SaludWidget extends AppWidgetProvider {
             color = Color.parseColor("#94A3B8");
         }
         String kind = w.optString("kind", "");
-        v.setTextViewText(R.id.widget_workout_kind, kind.isEmpty() ? "●" : "● " + kind);
+        boolean done = w.optBoolean("done", false);
+        v.setTextViewText(R.id.widget_workout_kind,
+                (done ? "✓" : "●") + (kind.isEmpty() ? "" : " " + kind));
         v.setTextColor(R.id.widget_workout_kind, color);
+
+        if (done) {
+            // Hecho hoy: lo que hiciste y lo siguiente que toca
+            StringBuilder sb = new StringBuilder("Hecho");
+            String doneText = w.optString("done_text", "");
+            if (!doneText.isEmpty()) {
+                sb.append(" · ").append(doneText);
+            }
+            JSONObject next = w.optJSONObject("next");
+            if (next != null) {
+                String nk = next.optString("kind", "");
+                sb.append("  →  ").append(next.optString("when", "")).append(' ')
+                        .append(nk.isEmpty() ? next.optString("title", "") : nk);
+            }
+            v.setTextViewText(R.id.widget_workout, sb.toString());
+            v.setTextColor(R.id.widget_workout, Color.parseColor("#94A3B8"));
+            v.setViewVisibility(R.id.widget_workout_row, View.VISIBLE);
+            return;
+        }
 
         StringBuilder sb = new StringBuilder(w.optString("when", ""));
         String title = w.optString("title", "");

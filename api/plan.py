@@ -19,6 +19,7 @@ from _lib.garmin_client import GarminClient
 from _lib.cache import save, load
 from _lib.tz import ahora
 from _lib.auth import authorized, deny
+from _lib.workouts import mark_done
 
 
 def refresh_plan(meta=None):
@@ -45,7 +46,9 @@ class handler(BaseHTTPRequestHandler):
                 save("meta", meta)
             else:
                 data = load("garmin_plan") or {"workouts": [], "synced_at": None}
-            self._r(200, data)
+            strava = load("strava") or {}
+            self._r(200, dict(data, workouts=mark_done(data.get("workouts"),
+                                                       strava.get("activities"))))
         except Exception as e:
             self._r(503 if "conectar" in str(e) else 500, {"error": str(e)})
 

@@ -14,6 +14,7 @@ from http.server import BaseHTTPRequestHandler
 from _lib.cache import load
 from _lib.metrics import current_body_battery
 from _lib.tz import hoy
+from _lib.workouts import mark_done
 from _lib.auth import authorized, deny
 
 
@@ -32,14 +33,13 @@ TIPOS = [
 ]
 
 
-def _next_workout(workouts):
-    """El entreno de hoy o, si no hay, el siguiente programado."""
-    today = hoy()
-    pending = sorted((w for w in workouts or [] if (w.get("date") or "") >= today.isoformat()),
-                     key=lambda w: w["date"])
-    if not pending:
-        return None
-    w = pending[0]
+def _km(d):
+    """8.0 → «8 km», 8.2 → «8,2 km» (coma decimal)."""
+    txt = f"{d:.1f}"
+    return (txt[:-2] if txt.endswith(".0") else txt.replace(".", ",")) + " km"
+
+
+def _describe(w, today):
     day = datetime.strptime(w["date"], "%Y-%m-%d").date()
     if day == today:
         when = "Hoy"
@@ -57,7 +57,35 @@ def _next_workout(workouts):
         "color": color,
         "minutes": round(w["duration_sec"] / 60) if w.get("duration_sec") else 0,
         "distance_km": round(w["distance_m"] / 1000, 1) if w.get("distance_m") else 0,
+        "done": bool(w.get("done")),
     }
+
+
+def _next_workout(workouts):
+    """Lo que toca hoy; si hoy ya está todo hecho, lo hecho y el siguiente;
+    si hoy no hay nada, el próximo programado."""
+    today = hoy()
+    pending = sorted((w for w in workouts or [] if (w.get("date") or "") >= today.isoformat()),
+                     key=lambda w: w["date"])
+    if not pending:
+        return None
+    todays = [w for w in pending if w["date"] == today.isoformat()]
+    later = [w for w in pending if w["date"] != today.isoformat() and not w.get("done")]
+    todo_today = [w for w in todays if not w.get("done")]
+
+    if todo_today:
+        return _describe(todo_today[0], today)
+    if todays:
+        out = _describe(todays[0], today)
+        act = todays[0].get("done_activity") or {}
+        out["done_text"] = " · ".join(x for x in [
+            _km(act["distance"]) if act.get("distance") else "",
+            act.get("time") or ""] if x)
+        if later:
+            nxt = _describe(later[0], today)
+            out["next"] = {k: nxt[k] for k in ("when", "title", "kind", "color")}
+        return out
+    return _describe(later[0], today) if later else None
 
 
 class handler(BaseHTTPRequestHandler):
@@ -114,7 +142,7 @@ class handler(BaseHTTPRequestHandler):
                 "distance": last.get("distance") or 0,
                 "time": last.get("time") or "",
             } if last else None,
-            "workout": _next_workout(plan.get("workouts")),
+            "workout": _next_workout(mark_done(plan.get("workouts"), s.get("activities"))),
         }
 
         body = json.dumps(payload, default=str).encode()

@@ -10,6 +10,7 @@ from pathlib import Path
 from garminconnect import Garmin
 from .tz import ahora, MADRID
 from .cache import load, save
+from .workouts import family
 
 logger = logging.getLogger(__name__)
 
@@ -505,10 +506,16 @@ class GarminClient:
                 logger.error(f"calendar {year}-{month}: {e}")
 
         upcoming, seen = [], set()
+        done_by_day = {}   # actividades ya hechas: marcan el entreno como cumplido
         for it in items:
             if not isinstance(it, dict):
                 continue
             kind = str(it.get("itemType") or "")
+            if kind == "activity":
+                day = str(it.get("date") or "")[:10]
+                done_by_day.setdefault(day, []).append(
+                    family(it.get("activityTypeKey") or it.get("sportTypeKey")))
+                continue
             is_workout = (it.get("workoutUuid") or it.get("workoutId")
                           or "workout" in kind.lower())
             if not is_workout or kind == "activity":
@@ -526,7 +533,14 @@ class GarminClient:
         out = []
         for i, it in enumerate(upcoming):
             detail = self._workout_detail(it) if i < max_details else None
-            out.append(_parse_workout(it, detail))
+            w = _parse_workout(it, detail)
+            fams = done_by_day.get(w["date"], [])
+            fam = family(w["sport_key"])
+            match = next((j for j, f in enumerate(fams) if not f or not fam or f == fam), None)
+            if match is not None:
+                fams.pop(match)
+                w["done"] = True
+            out.append(w)
         return out
 
     def _workout_detail(self, item):

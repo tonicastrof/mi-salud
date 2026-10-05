@@ -288,6 +288,11 @@ def build_plan_block(workouts) -> str:
         head += (", " + ", ".join(extra) if extra else "") + ")"
         if w.get("coach"):
             head += " [Garmin Coach]"
+        if w.get("done"):
+            act = w.get("done_activity") or {}
+            extra_done = ", ".join(x for x in [f"{act['distance']} km" if act.get("distance") else "",
+                                               act.get("time") or ""] if x)
+            head += " ✓ HECHO" + (f" ({extra_done})" if extra_done else "")
         lines.append(head)
         if w.get("description"):
             lines.append(f"  {w['description']}")

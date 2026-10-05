@@ -5,6 +5,7 @@ from http.server import BaseHTTPRequestHandler
 from _lib.cache import load
 from _lib.analytics import build_analytics
 from _lib.auth import authorized, deny
+from _lib.workouts import mark_done
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -38,7 +39,7 @@ class handler(BaseHTTPRequestHandler):
             "rhr_trend": g.get("rhr_trend", []),
             "body_battery_week": g.get("body_battery_week", []),
             # Garmin Coach / calendario
-            "scheduled_workouts": plan.get("workouts", []),
+            "scheduled_workouts": mark_done(plan.get("workouts"), s.get("activities")),
             # Strava
             "activities": s.get("activities", []),
             "analytics": build_analytics(s.get("activities", [])),
