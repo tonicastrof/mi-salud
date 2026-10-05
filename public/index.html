@@ -318,6 +318,22 @@ function Graficas({an,t}){
 // ─── Próximos entrenos de Garmin Coach ───
 const STEP_C={warmup:A.steps,cooldown:A.steps,interval:A.run,recovery:A.bat,rest:A.bat};
 const SPORT_I={running:"🏃",trail_running:"🏃",treadmill_running:"🏃",cycling:"🚴",indoor_cycling:"🚴",virtual_ride:"🚴",hiking:"⛰️",walking:"🚶",strength_training:"🏋️",swimming:"🏊",lap_swimming:"🏊"};
+// Tipo de sesión con los colores de «efecto de entreno» de Garmin. Se deduce de
+// la etiqueta que manda Garmin Coach (BASE, THRESHOLD...) o, si no, del título.
+const WTIPOS=[
+  {re:/recover|recupera|regenera/,l:"Recuperación",c:"#60a5fa"},
+  {re:/sprint|speed|velocidad/,l:"Sprint",c:"#ec4899"},
+  {re:/anaer/,l:"Anaeróbico",c:"#a855f7"},
+  {re:/vo2|interval|series|\d+\s*[x×]\s*\d+/,l:"VO₂ máx",c:"#ef4444"},
+  {re:/threshold|umbral|lactate|lactato/,l:"Umbral",c:"#f97316"},
+  {re:/tempo/,l:"Tempo",c:"#f59e0b"},
+  {re:/long|larg|tirada/,l:"Larga",c:"#14b8a6"},
+  {re:/base|aerob|easy|suave|rodaje/,l:"Base",c:"#22c55e"},
+];
+function wtipo(w){
+  const txt=((w.phrase||"")+" "+(w.title||"")).toLowerCase().replace(/_/g," ");
+  return WTIPOS.find(x=>x.re.test(txt))||null;
+}
 function cuando(date){
   const d=new Date(date+"T12:00:00"),hoy=new Date();hoy.setHours(12,0,0,0);
   const n=Math.round((d-hoy)/864e5);
@@ -361,17 +377,19 @@ function Plan({t,workouts,syncedAt,onAsk}){
     err&&h("div",{style:{background:t.bR.b,color:t.bR.f,borderRadius:8,padding:"6px 10px",fontSize:11,marginBottom:8}},"⚠️ "+err),
     ws.map((w,i)=>{
       const abierto=open===i;
+      const tp=wtipo(w);const col=tp?tp.c:(SC[w.sport]||A.fit);
       const extra=[w.duration_sec?Math.round(w.duration_sec/60)+" min":null,w.distance_m?(w.distance_m/1000).toFixed(1).replace(/\.0$/,"")+" km":null].filter(Boolean).join(" · ");
       return h("div",{key:i,style:{borderTop:i?"1px solid "+t.bd:"none"}},
         h("div",{onClick:()=>setOpen(abierto?null:i),style:{display:"flex",alignItems:"center",gap:10,padding:"9px 0",cursor:"pointer"}},
-          h("div",{style:{width:34,height:34,borderRadius:8,background:(SC[w.sport]||A.fit)+"18",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flex:"0 0 auto"}},SPORT_I[w.sport_key]||SI[w.sport]||"🏋️"),
+          h("div",{style:{width:34,height:34,borderRadius:8,background:col+"22",borderLeft:"3px solid "+col,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flex:"0 0 auto"}},SPORT_I[w.sport_key]||SI[w.sport]||"🏋️"),
           h("div",{style:{flex:1,minWidth:0}},
             h("div",{style:{fontSize:12,fontWeight:600,color:t.tx,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},w.title),
             h("div",{style:{fontSize:10,color:t.sb}},cuando(w.date)+(extra?" · "+extra:""))),
-          w.coach&&h("span",{style:{flex:"0 0 auto",padding:"2px 7px",borderRadius:10,fontSize:9,fontWeight:700,background:t.bG.b,color:t.bG.f}},"Coach"),
+          tp&&h("span",{style:{flex:"0 0 auto",padding:"2px 7px",borderRadius:10,fontSize:9,fontWeight:700,background:col+"22",color:col}},tp.l),
+          w.coach&&h("span",{title:"Garmin Coach",style:{flex:"0 0 auto",padding:"2px 6px",borderRadius:10,fontSize:9,fontWeight:700,background:t.ph,color:t.sb}},"Coach"),
           h("span",{style:{fontSize:14,color:t.mt,transform:abierto?"rotate(90deg)":"none",transition:"transform 0.2s"}},"›")),
         abierto&&h("div",{style:{padding:"0 0 12px 44px",display:"flex",flexDirection:"column",gap:8}},
-          w.phrase&&h("div",{style:{fontSize:10,fontWeight:700,color:A.fit,textTransform:"uppercase",letterSpacing:"0.05em"}},String(w.phrase).replace(/_/g," ")),
+          w.phrase&&h("div",{style:{fontSize:10,fontWeight:700,color:col,textTransform:"uppercase",letterSpacing:"0.05em"}},String(w.phrase).replace(/_/g," ")),
           w.description&&h("div",{style:{fontSize:12,color:t.sb,lineHeight:1.5}},w.description),
           (w.steps||[]).length?h(Steps,{steps:w.steps,t}):h("div",{style:{fontSize:11,color:t.mt}},"Garmin no ha dado el detalle de los pasos de este entreno."),
           onAsk&&h("button",{onClick:()=>onAsk(w),style:{alignSelf:"flex-start",border:"none",background:t.ph,borderRadius:8,padding:"5px 10px",color:t.sb,cursor:"pointer",fontSize:11,fontWeight:600}},"🤖 Preguntar por este entreno")));
