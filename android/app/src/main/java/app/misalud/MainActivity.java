@@ -42,6 +42,8 @@ import android.widget.Toast;
 public class MainActivity extends Activity {
 
     private static final String BRIDGE = "MiSaludNative";
+    /** Pestaña con la que abrir la app (la usa el widget: "coach"). */
+    static final String EXTRA_TAB = "app.misalud.extra.TAB";
     private static final long WIDGET_MAX_AGE_MS = 10 * 60 * 1000;
 
     private FrameLayout root;
@@ -71,10 +73,22 @@ public class MainActivity extends Activity {
         applyInsets();
         applyBarAppearance(bgColor);
 
-        if (savedInstanceState != null) {
+        String tab = getIntent().getStringExtra(EXTRA_TAB);
+        if (savedInstanceState != null && tab == null) {
             web.restoreState(savedInstanceState);
         } else {
-            web.loadUrl(baseUrl);
+            web.loadUrl(tab != null ? baseUrl + "/#" + tab : baseUrl);
+        }
+    }
+
+    /** Con la app ya abierta (singleTop), el widget llega por aquí: cambia de pestaña sin recargar. */
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        String tab = intent.getStringExtra(EXTRA_TAB);
+        if (tab != null && tab.matches("[a-z]+")) {
+            web.evaluateJavascript("window.__goTab&&window.__goTab('" + tab + "')", null);
         }
     }
 

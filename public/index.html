@@ -145,7 +145,7 @@ function Detail({a,onClose,t,onAsk}){
           h("div",null,h("div",{style:{fontSize:18,fontWeight:700}},(a.icon||SI[a.sport]||"🏋️")+" "+a.name),
             h("div",{style:{fontSize:12,opacity:0.8}},(a.date_formatted||a.date)+(a.start_time?" · "+a.start_time:"")+" · "+a.sport)),
           h("button",{onClick:onClose,style:{background:"rgba(255,255,255,0.2)",border:"none",borderRadius:"50%",width:32,height:32,color:"#fff",fontSize:18,cursor:"pointer"}},"✕")),
-        h("div",{style:{display:"flex",gap:16,marginTop:14,flexWrap:"wrap"}},stats.map((s,i)=>h("div",{key:i},h("div",{style:{fontSize:18,fontWeight:700}},s.v),h("div",{style:{fontSize:10,opacity:0.7}},s.l))))),
+        h("div",{style:{display:"flex",gap:16,marginTop:14,flexWrap:"wrap"}},stats.map((s,i)=>h("div",{key:i},h("div",{style:{fontSize:18,fontWeight:700}},s.v),h("div",{style:{fontSize:11,opacity:0.7}},s.l))))),
       h("div",{style:{padding:"16px 16px 32px"}},
         svgC,
         onAsk&&h("button",{onClick:()=>onAsk(a),style:{width:"100%",padding:"11px 0",marginBottom:14,border:"none",borderRadius:12,background:"linear-gradient(135deg,#3b82f6,#8b5cf6)",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}},"🤖 Preguntar al entrenador sobre esta sesión"),
@@ -155,8 +155,8 @@ function Detail({a,onClose,t,onAsk}){
           h("div",{style:{display:"flex",gap:5,flexWrap:"wrap"}},metrics.map(m=>h("button",{key:m.id,onClick:()=>setMetric(m.id),style:{padding:"4px 11px",borderRadius:20,fontSize:11,fontWeight:600,border:"none",cursor:"pointer",background:metric===m.id?m.c:t.ph,color:metric===m.id?"#fff":t.sb}},m.l))),
           h(ResponsiveContainer,{width:"100%",height:140},
             h(AreaChart,{data:chartData,margin:{top:5,right:6,left:0,bottom:0}},
-              h(XAxis,{dataKey:"x",axisLine:false,tickLine:false,tick:{fontSize:9,fill:t.mt},tickFormatter:v=>Math.round(v)+"k",interval:"preserveStartEnd",minTickGap:30}),
-              h(YAxis,{tick:{fontSize:9,fill:t.mt},axisLine:false,tickLine:false,width:38,reversed:isPace,domain:["auto","auto"],tickFormatter:v=>isPace?fmtPace(v):Math.round(v)}),
+              h(XAxis,{dataKey:"x",axisLine:false,tickLine:false,tick:{fontSize:10,fill:t.mt},tickFormatter:v=>Math.round(v)+"k",interval:"preserveStartEnd",minTickGap:30}),
+              h(YAxis,{tick:{fontSize:10,fill:t.mt},axisLine:false,tickLine:false,width:38,reversed:isPace,domain:["auto","auto"],tickFormatter:v=>isPace?fmtPace(v):Math.round(v)}),
               h(Tooltip,{contentStyle:t.tip,labelFormatter:v=>"km "+(Math.round(v*10)/10),formatter:v=>[(isPace?fmtPace(v):Math.round(v))+cur.u,cur.l]}),
               h(Area,{type:"monotone",dataKey:"v",stroke:cur.c,strokeWidth:2,fill:cur.c,fillOpacity:0.13,dot:false})))),
         // Zonas de FC
@@ -165,7 +165,7 @@ function Detail({a,onClose,t,onAsk}){
             h("span",{style:{width:24,fontSize:11,fontWeight:700,color:ZC[i]||t.sb}},b.zone),
             h("div",{style:{flex:1,height:12,background:t.ph,borderRadius:6,overflow:"hidden"}},h("div",{style:{width:b.percent+"%",height:"100%",background:ZC[i]||t.sb,borderRadius:6,transition:"width .5s"}})),
             h("span",{style:{width:52,fontSize:11,fontWeight:600,color:t.tx,textAlign:"right"}},b.minutes+" min"),
-            h("span",{style:{width:34,fontSize:10,color:t.sb,textAlign:"right"}},b.percent+"%"))))),
+            h("span",{style:{width:34,fontSize:11,color:t.sb,textAlign:"right"}},b.percent+"%"))))),
         // Parciales por km
         laps.length>0&&h(Card,{title:"Parciales por km",accent:color,t,style:{marginBottom:14}},
           h("div",null,laps.map((l,i)=>{const sec=paceToSec(l.pace);const rng=(maxLapPace-minLapPace)||1;const w=30+70*(1-(sec-minLapPace)/rng);
@@ -173,14 +173,14 @@ function Detail({a,onClose,t,onAsk}){
               h("span",{style:{width:26,fontSize:11,fontWeight:700,color:t.sb}},l.km),
               h("div",{style:{flex:1,height:14,background:t.ph,borderRadius:4,overflow:"hidden"}},h("div",{style:{width:w+"%",height:"100%",background:color,opacity:0.75,borderRadius:4}})),
               h("span",{style:{width:48,fontSize:11,fontWeight:700,color:t.tx,textAlign:"right"}},l.pace),
-              l.hr>0&&h("span",{style:{width:42,fontSize:10,color:A.hr,textAlign:"right"}},l.hr+" bpm"),
-              h("span",{style:{width:42,fontSize:10,color:t.mt,textAlign:"right"}},(l.elev>0?"↑":"")+l.elev+"m"))}))),
+              l.hr>0&&h("span",{style:{width:42,fontSize:11,color:A.hr,textAlign:"right"}},l.hr+" bpm"),
+              h("span",{style:{width:42,fontSize:11,color:t.mt,textAlign:"right"}},(l.elev>0?"↑":"")+l.elev+"m"))}))),
         // Mejores esfuerzos
         full&&full.best_efforts&&full.best_efforts.length>0&&h(Card,{title:"Mejores esfuerzos",accent:A.vo2,t,style:{marginBottom:14}},
           h("div",{style:{display:"flex",flexWrap:"wrap",gap:8}},full.best_efforts.map((b,i)=>
             h("div",{key:i,style:{background:t.ph,borderRadius:8,padding:"6px 11px"}},
               h("div",{style:{fontSize:13,fontWeight:700,color:t.tx}},b.time),
-              h("div",{style:{fontSize:10,color:t.sb}},b.name))))),
+              h("div",{style:{fontSize:11,color:t.sb}},b.name))))),
         full&&(full.gear||full.device)&&h("div",{style:{fontSize:11,color:t.mt,textAlign:"center"}},[full.gear,full.device].filter(Boolean).join(" · "))
       )));
 }
@@ -197,12 +197,12 @@ function Calendario({cal,t,acts,onPick}){
   return h(Card,{title:"Calendario de entrenos",accent:A.bat,t,style:{marginBottom:14}},
     h("div",{style:{display:"flex",gap:14,flexWrap:"wrap",marginTop:-4}},
       [{l:"Días activos (12 sem)",v:cal.active_days},{l:"Racha",v:dias(cal.streak)},{l:"Descanso (7d)",v:dias(cal.rest_days_last_7)}].map((s,i)=>
-        h("div",{key:i},h("div",{style:{fontSize:16,fontWeight:700,color:t.tx}},s.v),h("div",{style:{fontSize:9,color:t.mt}},s.l)))),
+        h("div",{key:i},h("div",{style:{fontSize:16,fontWeight:700,color:t.tx}},s.v),h("div",{style:{fontSize:11,color:t.mt}},s.l)))),
     h("div",{style:{display:"grid",gridTemplateColumns:"26px repeat(7,1fr)",gap:3,alignItems:"center"}},
       h("span",null),
-      cal.weekday_labels.map((d,i)=>h("span",{key:"h"+i,style:{fontSize:9,fontWeight:700,color:t.mt,textAlign:"center"}},d)),
+      cal.weekday_labels.map((d,i)=>h("span",{key:"h"+i,style:{fontSize:11,fontWeight:700,color:t.mt,textAlign:"center"}},d)),
       cal.weeks.map((w,wi)=>[
-        h("span",{key:"w"+wi,style:{fontSize:8,color:t.mt,textAlign:"right",paddingRight:2}},w.label),
+        h("span",{key:"w"+wi,style:{fontSize:10,color:t.mt,textAlign:"right",paddingRight:2}},w.label),
         ...w.days.map((d,di)=>{
           const on=d.count>0;const col=on?(SC[d.sports[0]]||A.bat):null;
           const op=on?0.45+0.55*Math.min(1,Math.sqrt(d.minutes/topMin)):1;
@@ -211,14 +211,14 @@ function Calendario({cal,t,acts,onPick}){
             style:{aspectRatio:"1",width:"100%",border:isSel?"2px solid "+t.tx:d.today?"1.5px dashed "+t.sb:"1px solid "+t.bd,
               borderRadius:5,cursor:on?"pointer":"default",padding:0,position:"relative",
               background:on?col:(d.future?"transparent":t.ph),opacity:d.future?0.25:op,
-              color:on?"#fff":t.mt,fontSize:8,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}},
+              color:on?"#fff":t.mt,fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}},
             d.count>1?d.count+"×":"")})
       ])
     ),
     h("div",{style:{display:"flex",gap:10,flexWrap:"wrap",marginTop:2}},
       ["Run","Ride","Hike"].map(s=>h("div",{key:s,style:{display:"flex",alignItems:"center",gap:4}},
         h("div",{style:{width:8,height:8,borderRadius:2,background:SC[s]}}),
-        h("span",{style:{fontSize:9,color:t.mt}},s==="Run"?"Correr":s==="Ride"?"Bici":"Senderismo")))),
+        h("span",{style:{fontSize:11,color:t.mt}},s==="Run"?"Correr":s==="Ride"?"Bici":"Senderismo")))),
     sel&&h("div",{style:{background:t.ph,borderRadius:10,padding:"10px 12px"}},
       h("div",{style:{fontSize:11,fontWeight:700,color:t.tx,marginBottom:6}},
         new Date(sel.date+"T12:00:00").toLocaleDateString("es",{weekday:"long",day:"numeric",month:"long"})+
@@ -258,14 +258,14 @@ function Graficas({an,t}){
         h("div",{key:i,style:{background:t.cd,borderRadius:10,padding:"9px 4px",border:"1px solid "+t.bd,textAlign:"center"}},
           h("div",{style:{fontSize:14}},s.i),
           h("div",{style:{fontSize:16,fontWeight:700,color:t.tx}},s.v),
-          h("div",{style:{fontSize:9,color:t.mt}},s.u)))),
+          h("div",{style:{fontSize:11,color:t.mt}},s.u)))),
     // Volumen semanal
     h(Card,{title:"Volumen por semana",accent:A.steps,t,style:{marginBottom:14}},
       h("div",{style:{display:"flex",gap:5}},[8,12,16].map(n=>h("button",{key:n,onClick:()=>setRange(n),style:{padding:"4px 11px",borderRadius:20,fontSize:11,fontWeight:600,border:"none",cursor:"pointer",background:range===n?A.steps:t.ph,color:range===n?"#fff":t.sb}},n+" sem"))),
       h(ResponsiveContainer,{width:"100%",height:150},
         h(ComposedChart,{data:weeks,margin:{top:5,right:4,left:0,bottom:0}},
-          h(XAxis,{dataKey:"name",axisLine:false,tickLine:false,tick:{fontSize:8,fill:t.mt},interval:range>8?1:0}),
-          h(YAxis,{yAxisId:"km",tick:{fontSize:9,fill:t.mt},axisLine:false,tickLine:false,width:30}),
+          h(XAxis,{dataKey:"name",axisLine:false,tickLine:false,tick:{fontSize:10,fill:t.mt},interval:range>8?1:0}),
+          h(YAxis,{yAxisId:"km",tick:{fontSize:10,fill:t.mt},axisLine:false,tickLine:false,width:30}),
           h(YAxis,{yAxisId:"load",orientation:"right",hide:true}),
           h(Tooltip,{contentStyle:t.tip,formatter:(v,n)=>[n==="km"?v+" km":n==="effort"?"carga "+v:v,""],
             labelFormatter:l=>{const w=weeks.find(x=>x.name===l);return "Semana del "+l+(w&&w.partial?" · en curso ("+w.days_elapsed+"/7 días)":"")}}),
@@ -275,16 +275,16 @@ function Graficas({an,t}){
         [{l:"km",c:A.steps},{l:"carga (RE)",c:A.fat}].map((s,i)=>
           h("div",{key:i,style:{display:"flex",alignItems:"center",gap:4}},
             h("div",{style:{width:7,height:7,borderRadius:"50%",background:s.c}}),
-            h("span",{style:{fontSize:10,color:t.mt}},s.l)))),
-      parcial&&h("div",{style:{fontSize:10,color:t.mt,textAlign:"center",marginTop:4}},
+            h("span",{style:{fontSize:11,color:t.mt}},s.l)))),
+      parcial&&h("div",{style:{fontSize:11,color:t.mt,textAlign:"center",marginTop:4}},
         "Semanas naturales lun→dom. La última va por "+(sum.this_week_days_elapsed||0)+"/7 días, "+
         "por eso su barra es más baja. La «carga aguda» del informe usa otra ventana: los últimos 7 días desde hoy.")),
     // Desnivel mensual
     h(Card,{title:"Desnivel acumulado por mes",accent:A.hike,t,style:{marginBottom:14}},
       h(ResponsiveContainer,{width:"100%",height:110},
         h(BarChart,{data:(an.monthly||[]).map(m=>({...m,name:m.label})),margin:{top:5,right:4,left:0,bottom:0}},
-          h(XAxis,{dataKey:"name",axisLine:false,tickLine:false,tick:{fontSize:9,fill:t.mt}}),
-          h(YAxis,{tick:{fontSize:9,fill:t.mt},axisLine:false,tickLine:false,width:34}),
+          h(XAxis,{dataKey:"name",axisLine:false,tickLine:false,tick:{fontSize:10,fill:t.mt}}),
+          h(YAxis,{tick:{fontSize:10,fill:t.mt},axisLine:false,tickLine:false,width:34}),
           h(Tooltip,{contentStyle:t.tip,formatter:v=>[v+" m D+",""]}),
           h(Bar,{dataKey:"elev",radius:[4,4,0,0],fill:A.hike,fillOpacity:0.7,barSize:16})))),
     // Reparto por deporte
@@ -299,31 +299,31 @@ function Graficas({an,t}){
     wd.length>0&&h(Card,{title:"Cuándo entrenas — 90 días",accent:A.fit,t,style:{marginBottom:14}},
       h("div",{style:{display:"flex",gap:5,alignItems:"flex-end",height:80}},
         wd.map((r,i)=>h("div",{key:i,style:{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3,height:"100%",justifyContent:"flex-end"}},
-          h("span",{style:{fontSize:10,fontWeight:700,color:t.tx}},r.count),
+          h("span",{style:{fontSize:11,fontWeight:700,color:t.tx}},r.count),
           h("div",{style:{width:"100%",height:Math.max(3,r.count/maxWd*52),background:A.fit,opacity:0.3+0.7*(r.count/maxWd),borderRadius:"4px 4px 0 0"}}),
-          h("span",{style:{fontSize:9,color:t.mt}},r.day)))),
+          h("span",{style:{fontSize:11,color:t.mt}},r.day)))),
       (an.time_of_day||[]).some(s=>s.count>0)&&h("div",{style:{display:"flex",gap:8,justifyContent:"space-around",borderTop:"1px solid "+t.bd,paddingTop:8}},
         (an.time_of_day||[]).map((s,i)=>h("div",{key:i,style:{textAlign:"center"}},
           h("div",{style:{fontSize:14}},s.icon),
           h("div",{style:{fontSize:13,fontWeight:700,color:t.tx}},s.count),
-          h("div",{style:{fontSize:9,color:t.mt}},s.slot))))),
+          h("div",{style:{fontSize:11,color:t.mt}},s.slot))))),
     // Tendencia de ritmo
     runs.length>2&&h(Card,{title:"Ritmo en carrera — últimas sesiones",accent:A.run,t,style:{marginBottom:14}},
       h(ResponsiveContainer,{width:"100%",height:130},
         h(ComposedChart,{data:runs.map(r=>({...r,name:r.label})),margin:{top:5,right:4,left:0,bottom:0}},
-          h(XAxis,{dataKey:"name",axisLine:false,tickLine:false,tick:{fontSize:8,fill:t.mt},interval:Math.max(0,Math.floor(runs.length/6))}),
-          h(YAxis,{yAxisId:"p",reversed:true,domain:["auto","auto"],tick:{fontSize:9,fill:t.mt},axisLine:false,tickLine:false,width:38,tickFormatter:fmtPace}),
+          h(XAxis,{dataKey:"name",axisLine:false,tickLine:false,tick:{fontSize:10,fill:t.mt},interval:Math.max(0,Math.floor(runs.length/6))}),
+          h(YAxis,{yAxisId:"p",reversed:true,domain:["auto","auto"],tick:{fontSize:10,fill:t.mt},axisLine:false,tickLine:false,width:38,tickFormatter:fmtPace}),
           h(YAxis,{yAxisId:"h",orientation:"right",hide:true,domain:[100,200]}),
           h(Tooltip,{contentStyle:t.tip,formatter:(v,n)=>n==="pace_sec"?[fmtPace(v)+"/km","ritmo"]:n==="hr"?[v+" bpm","FC"]:[v,n]}),
           h(Line,{yAxisId:"p",type:"monotone",dataKey:"pace_sec",stroke:A.run,strokeWidth:2.5,dot:{r:2.5,fill:A.run}}),
           h(Line,{yAxisId:"h",type:"monotone",dataKey:"hr",stroke:A.hr,strokeWidth:1.5,dot:false,strokeDasharray:"3 3"}))),
-      h("div",{style:{fontSize:10,color:t.mt,textAlign:"center"}},"Línea sólida: ritmo (más arriba = más rápido) · discontinua: FC media")),
+      h("div",{style:{fontSize:11,color:t.mt,textAlign:"center"}},"Línea sólida: ritmo (más arriba = más rápido) · discontinua: FC media")),
     // Tendencia en bici
     rides.length>2&&h(Card,{title:"Velocidad en bici — últimas salidas",accent:A.ride,t,style:{marginBottom:14}},
       h(ResponsiveContainer,{width:"100%",height:120},
         h(ComposedChart,{data:rides.map(r=>({...r,name:r.label})),margin:{top:5,right:4,left:0,bottom:0}},
-          h(XAxis,{dataKey:"name",axisLine:false,tickLine:false,tick:{fontSize:8,fill:t.mt},interval:Math.max(0,Math.floor(rides.length/6))}),
-          h(YAxis,{yAxisId:"v",tick:{fontSize:9,fill:t.mt},axisLine:false,tickLine:false,width:32,domain:["auto","auto"]}),
+          h(XAxis,{dataKey:"name",axisLine:false,tickLine:false,tick:{fontSize:10,fill:t.mt},interval:Math.max(0,Math.floor(rides.length/6))}),
+          h(YAxis,{yAxisId:"v",tick:{fontSize:10,fill:t.mt},axisLine:false,tickLine:false,width:32,domain:["auto","auto"]}),
           h(YAxis,{yAxisId:"d",orientation:"right",hide:true}),
           h(Tooltip,{contentStyle:t.tip,formatter:(v,n)=>n==="speed"?[v+" km/h","velocidad"]:[v+" km","distancia"]}),
           h(Bar,{yAxisId:"d",dataKey:"km",fill:A.ride,fillOpacity:0.18,radius:[3,3,0,0]}),
@@ -337,7 +337,7 @@ function Graficas({an,t}){
           h("div",{style:{fontSize:12,fontWeight:600,color:t.tx,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},r.name)),
         h("div",{style:{textAlign:"right"}},
           h("div",{style:{fontSize:14,fontWeight:700,color:t.tx}},r.value),
-          h("div",{style:{fontSize:9,color:t.mt}},r.date)))))
+          h("div",{style:{fontSize:11,color:t.mt}},r.date)))))
   );
 }
 
@@ -372,22 +372,24 @@ function Steps({steps,t}){
   return h("div",{style:{display:"flex",flexDirection:"column",gap:5}},
     (steps||[]).map((st,i)=>st.repeat
       ? h("div",{key:i,style:{border:"1px dashed "+t.bd,borderRadius:10,padding:"6px 8px"}},
-          h("div",{style:{fontSize:10,fontWeight:700,color:t.sb,marginBottom:5}},"🔁 "+st.repeat+" veces"),
+          h("div",{style:{fontSize:11,fontWeight:700,color:t.sb,marginBottom:5}},"🔁 "+st.repeat+" veces"),
           h(Steps,{steps:st.steps,t}))
       : h("div",{key:i,style:{display:"flex",gap:8,alignItems:"stretch"}},
           h("div",{style:{width:3,borderRadius:2,background:STEP_C[st.type]||t.mt,flex:"0 0 auto"}}),
           h("div",{style:{flex:1,minWidth:0,padding:"1px 0"}},
             h("div",{style:{fontSize:12,color:t.tx}},h("strong",null,st.label),st.duration?" · "+st.duration:""),
             st.target&&h("div",{style:{fontSize:11,color:t.sb}},"🎯 "+st.target),
-            st.note&&h("div",{style:{fontSize:10,color:t.mt,marginTop:1}},st.note)))));
+            st.note&&h("div",{style:{fontSize:11,color:t.mt,marginTop:1}},st.note)))));
 }
-function Plan({t,workouts,syncedAt,onAsk}){
+function Plan({t,workouts,syncedAt,onAsk,focus}){
   const[ws,setWs]=useState(workouts||[]);
   const[at,setAt]=useState(syncedAt);
   const[open,setOpen]=useState(null);
   const[busy,setBusy]=useState(false);
   const[err,setErr]=useState("");
   useEffect(()=>{setWs(workouts||[]);setAt(syncedAt)},[workouts,syncedAt]);
+  // Si vienes desde «Hoy» o desde el widget, se abre ese entreno
+  useEffect(()=>{if(!focus)return;const i=(workouts||[]).findIndex(w=>w.date===focus.date&&w.title===focus.title);if(i>=0)setOpen(i)},[focus,workouts]);
   const refrescar=async()=>{
     setBusy(true);setErr("");
     try{const r=await fetch("/api/plan?refresh=1");const j=await r.json();
@@ -398,7 +400,7 @@ function Plan({t,workouts,syncedAt,onAsk}){
   return h("div",{style:{background:t.cd,border:"1px solid "+t.bd,borderRadius:14,padding:"14px 16px",marginBottom:12}},
     h("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:4}},
       h("div",{style:{fontSize:13,fontWeight:700,color:t.tx}},"📅 Próximos entrenos de Garmin"),
-      h("button",{onClick:refrescar,disabled:busy,style:{flex:"0 0 auto",border:"none",background:t.ph,borderRadius:8,padding:"4px 9px",color:t.sb,cursor:"pointer",fontSize:10,fontWeight:600}},busy?"⏳":"↻ Actualizar")),
+      h("button",{onClick:refrescar,disabled:busy,style:{flex:"0 0 auto",border:"none",background:t.ph,borderRadius:8,padding:"4px 9px",color:t.sb,cursor:"pointer",fontSize:11,fontWeight:600}},busy?"⏳":"↻ Actualizar")),
     h("div",{style:{fontSize:11,color:t.mt,marginBottom:10}},
       ws.length?"Lo que tienes programado en Garmin Coach y el calendario para las próximas 2 semanas. Toca uno para ver los pasos.":
       at?"No tienes nada programado en Garmin para las próximas 2 semanas.":"Aún no se han descargado. Pulsa Actualizar o Sync."),
@@ -412,21 +414,59 @@ function Plan({t,workouts,syncedAt,onAsk}){
           h("div",{style:{width:34,height:34,borderRadius:8,background:col+"22",borderLeft:"3px solid "+col,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flex:"0 0 auto"}},SPORT_I[w.sport_key]||SI[w.sport]||"🏋️"),
           h("div",{style:{flex:1,minWidth:0}},
             h("div",{style:{fontSize:12,fontWeight:600,color:t.tx,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},w.title),
-            h("div",{style:{fontSize:10,color:t.sb}},cuando(w.date)+(extra?" · "+extra:""))),
-          tp&&h("span",{style:{flex:"0 0 auto",padding:"2px 7px",borderRadius:10,fontSize:9,fontWeight:700,background:col+"22",color:col}},tp.l),
-          w.coach&&h("span",{title:"Garmin Coach",style:{flex:"0 0 auto",padding:"2px 6px",borderRadius:10,fontSize:9,fontWeight:700,background:t.ph,color:t.sb}},"Coach"),
+            h("div",{style:{fontSize:11,color:t.sb}},cuando(w.date)+(extra?" · "+extra:""))),
+          tp&&h("span",{style:{flex:"0 0 auto",padding:"2px 7px",borderRadius:10,fontSize:11,fontWeight:700,background:col+"22",color:col}},tp.l),
+          w.coach&&h("span",{title:"Garmin Coach",style:{flex:"0 0 auto",padding:"2px 6px",borderRadius:10,fontSize:11,fontWeight:700,background:t.ph,color:t.sb}},"Coach"),
           h("span",{style:{fontSize:14,color:t.mt,transform:abierto?"rotate(90deg)":"none",transition:"transform 0.2s"}},"›")),
         abierto&&h("div",{style:{padding:"0 0 12px 44px",display:"flex",flexDirection:"column",gap:8}},
-          w.phrase&&h("div",{style:{fontSize:10,fontWeight:700,color:col,textTransform:"uppercase",letterSpacing:"0.05em"}},String(w.phrase).replace(/_/g," ")),
+          w.phrase&&h("div",{style:{fontSize:11,fontWeight:700,color:col,textTransform:"uppercase",letterSpacing:"0.05em"}},String(w.phrase).replace(/_/g," ")),
           w.description&&h("div",{style:{fontSize:12,color:t.sb,lineHeight:1.5}},w.description),
           (w.steps||[]).length?h(Steps,{steps:w.steps,t}):h("div",{style:{fontSize:11,color:t.mt}},"Garmin no ha dado el detalle de los pasos de este entreno."),
           onAsk&&h("button",{onClick:()=>onAsk(w),style:{alignSelf:"flex-start",border:"none",background:t.ph,borderRadius:8,padding:"5px 10px",color:t.sb,cursor:"pointer",fontSize:11,fontWeight:600}},"🤖 Preguntar por este entreno")));
     }),
-    at&&h("div",{style:{fontSize:9,color:t.mt,marginTop:8}},"Actualizado "+new Date(at).toLocaleString("es",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})));
+    at&&h("div",{style:{fontSize:11,color:t.mt,marginTop:8}},"Actualizado "+new Date(at).toLocaleString("es",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})));
+}
+
+// ─── Hoy: cómo estás y qué toca ───
+const rdColor=(s)=>s>=70?A.bat:s>=50?A.stress:A.hr;
+const DUROS=["Umbral","VO₂ máx","Anaeróbico","Sprint","Tempo"];
+function Hoy({t,rd,sl,hrv,workouts,onPlan}){
+  const today=localISO(new Date());
+  const ws=(workouts||[]).filter(w=>(w.date||"")>=today).sort((a,b)=>a.date<b.date?-1:1);
+  const w=ws[0],esHoy=!!w&&w.date===today,tp=w?wtipo(w):null;
+  const score=rd.score||0,col=rdColor(score);
+  const duro=esHoy&&tp&&DUROS.includes(tp.l);
+  const aviso=duro&&score>0&&score<50?"Readiness baja para un "+tp.l.toLowerCase()+": valora cambiarlo por un rodaje suave o moverlo un día."
+    :duro&&score>=50&&score<70?"Readiness justa: haz el "+tp.l.toLowerCase()+" pero sin apurar los ritmos.":null;
+  const wcol=tp?tp.c:A.fit;
+  const fila=(ic,l,v,sub)=>h("div",{style:{display:"flex",alignItems:"baseline",gap:6}},
+    h("span",{style:{fontSize:13}},ic),h("span",{style:{fontSize:12,color:t.sb,minWidth:42}},l),
+    h("span",{style:{fontSize:15,fontWeight:700,color:t.tx}},v),sub&&h("span",{style:{fontSize:11,color:t.mt}},sub));
+  return h("div",{style:{background:t.cd,border:"1px solid "+t.bd,borderRadius:16,padding:"16px 18px",marginBottom:14,position:"relative",overflow:"hidden"}},
+    h("div",{style:{position:"absolute",top:0,left:0,right:0,height:3,background:col}}),
+    h("div",{style:{display:"flex",alignItems:"center",gap:16}},
+      h("div",{style:{textAlign:"center",flex:"0 0 auto",minWidth:76}},
+        h("div",{style:{fontSize:40,fontWeight:800,color:score?col:t.mt,lineHeight:1}},score||"—"),
+        h("div",{style:{fontSize:11,fontWeight:700,color:t.sb,textTransform:"uppercase",letterSpacing:"0.05em",marginTop:4}},"Readiness"),
+        rd.status&&h("div",{style:{fontSize:11,color:col,marginTop:2,maxWidth:96}},rd.status)),
+      h("div",{style:{flex:1,display:"flex",flexDirection:"column",gap:7,borderLeft:"1px solid "+t.bd,paddingLeft:14}},
+        fila("😴","Sueño",sl.total_formatted||"—",sl.score?sl.score+" pts":null),
+        fila("💓","HRV",hrv.last_night_avg?hrv.last_night_avg+" ms":"—",hrv.status&&hrv.status!=="UNKNOWN"?hrv.status.toLowerCase():null))),
+    h("div",{onClick:w?()=>onPlan(w):undefined,style:{marginTop:14,display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:12,
+        background:w?wcol+"14":t.ph,borderLeft:"3px solid "+(w?wcol:t.mt),cursor:w?"pointer":"default"}},
+      h("div",{style:{flex:1,minWidth:0}},
+        h("div",{style:{fontSize:11,fontWeight:700,color:w?wcol:t.mt,textTransform:"uppercase",letterSpacing:"0.05em"}},
+          esHoy?"Hoy toca"+(tp?" · "+tp.l:""):w?"Hoy: nada programado":"Sin entrenos programados"),
+        w&&h("div",{style:{fontSize:14,fontWeight:700,color:t.tx,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},
+          (esHoy?"":"Próximo: "+cuando(w.date).toLowerCase()+" · ")+w.title),
+        w&&(w.duration_sec||w.distance_m)&&h("div",{style:{fontSize:11,color:t.sb,marginTop:1}},
+          [w.duration_sec?Math.round(w.duration_sec/60)+" min":null,w.distance_m?(w.distance_m/1000).toFixed(1).replace(/\.0$/,"")+" km":null].filter(Boolean).join(" · "))),
+      w&&h("span",{style:{fontSize:16,color:t.mt}},"›")),
+    aviso&&h("div",{style:{marginTop:10,fontSize:12,lineHeight:1.45,background:t.bY.b,color:t.bY.f,borderRadius:10,padding:"8px 11px"}},"⚠️ "+aviso));
 }
 
 // ─── Entrenador IA ───
-function Coach({t,ctx,onClearCtx,plan,planAt}){
+function Coach({t,ctx,onClearCtx,plan,planAt,focus}){
   const[msgs,setMsgs]=useState(()=>{try{return JSON.parse(localStorage.getItem("coach_chat")||"[]")}catch(e){return[]}});
   const[input,setInput]=useState(ctx?("Analiza esta sesión: "+ctx.name):"");
   const[busy,setBusy]=useState(false);
@@ -496,7 +536,9 @@ function Coach({t,ctx,onClearCtx,plan,planAt}){
   return h("div",{style:{display:"flex",flexDirection:"column",minHeight:"64vh"}},
     ctx&&h("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,background:t.cd,border:"1px solid "+t.bd,borderLeft:"3px solid "+(SC[ctx.sport]||A.fit),borderRadius:10,padding:"8px 12px",marginBottom:10}},
       h("span",{style:{fontSize:11,color:t.sb}},"Hablando de: ",h("strong",{style:{color:t.tx}},ctx.name)),
-      h("button",{onClick:onClearCtx,style:{flex:"0 0 auto",border:"none",background:t.ph,borderRadius:8,padding:"4px 9px",color:t.sb,cursor:"pointer",fontSize:10,fontWeight:600}},"✕ quitar")),
+      h("button",{onClick:onClearCtx,style:{flex:"0 0 auto",border:"none",background:t.ph,borderRadius:8,padding:"4px 9px",color:t.sb,cursor:"pointer",fontSize:11,fontWeight:600}},"✕ quitar")),
+    // Lo de cada día primero: los entrenos programados en Garmin
+    h(Plan,{t,workouts:plan,syncedAt:planAt,focus,onAsk:disabled?null:preguntarEntreno}),
     // Copiar el informe y preguntar en la app de Claude que ya pagas
     h("div",{style:{background:t.cd,border:"1px solid "+t.bd,borderRadius:14,padding:"14px 16px",marginBottom:12}},
       h("div",{style:{fontSize:13,fontWeight:700,color:t.tx,marginBottom:4}},"📋 Preguntar en la app de Claude"),
@@ -513,13 +555,11 @@ function Coach({t,ctx,onClearCtx,plan,planAt}){
         h("div",{style:{fontSize:11,color:t.sb,margin:"8px 0 5px"}},"Tu navegador no deja copiar solo. Selecciona todo el texto y cópialo a mano:"),
         h("textarea",{readOnly:true,value:dossier,onFocus:e=>e.target.select(),rows:6,
           style:{width:"100%",resize:"vertical",padding:10,borderRadius:10,border:"1px solid "+t.bd,background:t.ph,color:t.tx,fontSize:11,fontFamily:"monospace"}})),
-      ctx&&h("div",{style:{fontSize:10,color:t.mt,marginTop:8}},"Incluye también los parciales y zonas de «"+ctx.name+"»"),
+      ctx&&h("div",{style:{fontSize:11,color:t.mt,marginTop:8}},"Incluye también los parciales y zonas de «"+ctx.name+"»"),
       disabled&&(info.suggestions||[]).length>0&&h("div",{style:{borderTop:"1px solid "+t.bd,marginTop:12,paddingTop:10}},
-        h("div",{style:{fontSize:10,fontWeight:700,color:t.mt,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:7}},"Luego pregúntale, por ejemplo"),
+        h("div",{style:{fontSize:11,fontWeight:700,color:t.mt,textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:7}},"Luego pregúntale, por ejemplo"),
         h("div",{style:{display:"flex",gap:5,flexWrap:"wrap"}},
           info.suggestions.map((s,i)=>h("span",{key:i,style:{padding:"5px 10px",borderRadius:20,fontSize:11,background:t.ph,color:t.sb}},s))))),
-    // Próximos entrenos programados en Garmin (Garmin Coach)
-    h(Plan,{t,workouts:plan,syncedAt:planAt,onAsk:disabled?null:preguntarEntreno}),
     disabled&&h("div",{style:{background:t.cd,border:"1px solid "+t.bd,borderRadius:12,padding:"12px 16px",marginBottom:12}},
       h("div",{style:{fontSize:12,fontWeight:700,color:t.tx,marginBottom:4}},"💬 Chat dentro de la app"),
       h("div",{style:{fontSize:11,color:t.sb,lineHeight:1.5}},"Si además quieres chatear aquí sin salir de la app, añade ",h("code",{style:{background:t.ph,padding:"1px 5px",borderRadius:4}},"ANTHROPIC_API_KEY")," en Vercel (se cobra por uso, aparte de tu suscripción).")),
@@ -536,7 +576,7 @@ function Coach({t,ctx,onClearCtx,plan,planAt}){
         ? h("div",{key:i,style:{alignSelf:"flex-end",maxWidth:"85%",background:"linear-gradient(135deg,#3b82f6,#6366f1)",color:"#fff",borderRadius:"14px 14px 4px 14px",padding:"9px 13px",fontSize:13,lineHeight:1.5}},m.content)
         : h("div",{key:i,style:{alignSelf:"flex-start",maxWidth:"92%",background:t.cd,border:"1px solid "+t.bd,color:t.tx,borderRadius:"14px 14px 14px 4px",padding:"11px 14px",fontSize:13}},
             h(Md,{text:m.content,t}),
-            m.usage&&m.usage.cache_read>0&&h("div",{style:{fontSize:9,color:t.mt,marginTop:6}},"⚡ contexto cacheado"))),
+            m.usage&&m.usage.cache_read>0&&h("div",{style:{fontSize:11,color:t.mt,marginTop:6}},"⚡ contexto cacheado"))),
       busy&&h("div",{style:{alignSelf:"flex-start",background:t.cd,border:"1px solid "+t.bd,borderRadius:"14px 14px 14px 4px",padding:"11px 14px",fontSize:13,color:t.sb}},"✍️ Pensando..."),
       h("div",{ref:end})),
     err&&h("div",{style:{background:t.bR.b,color:t.bR.f,borderRadius:10,padding:"9px 12px",fontSize:12,marginBottom:10}},"⚠️ "+err),
@@ -557,11 +597,22 @@ function Coach({t,ctx,onClearCtx,plan,planAt}){
 }
 
 function App(){
-  const[dk,setDk]=useState(true);
+  const[dk,setDkRaw]=useState(()=>{
+    try{const v=localStorage.getItem("theme");if(v)return v==="dark"}catch(e){}
+    return !window.matchMedia||window.matchMedia("(prefers-color-scheme: dark)").matches;
+  });
+  const setDk=(v)=>{setDkRaw(v);try{localStorage.setItem("theme",v?"dark":"light")}catch(e){}};
   const[tab,setTab]=useState("resumen");
   const[sel,setSel]=useState(null);
   const[coachCtx,setCoachCtx]=useState(null);
   const[needLogin,setNeedLogin]=useState(false);
+  const[planFocus,setPlanFocus]=useState(null);
+  const goPlan=(w)=>{setPlanFocus({date:w.date,title:w.title});setTab("coach");window.scrollTo(0,0)};
+  // El widget abre la app en #coach; con la app ya abierta llama a __goTab
+  useEffect(()=>{
+    window.__goTab=(id)=>{setTab(id);window.scrollTo(0,0)};
+    if(location.hash==="#coach")setTab("coach");
+  },[]);
   onNeedLogin=()=>setNeedLogin(true);
   const[flt,setFlt]=useState("Todas");
   const[data,setData]=useState(null);
@@ -634,7 +685,7 @@ function App(){
       h("div",{style:{maxWidth:560,margin:"0 auto"}},
         h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}},
           h("div",null,
-            h("div",{style:{fontSize:10,color:t.hs,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em"}},"Mi Salud"),
+            h("div",{style:{fontSize:11,color:t.hs,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em"}},"Mi Salud"),
             h("div",{style:{fontSize:19,fontWeight:700}},"Hola, "+(data.profile?.name?.split(" ")[0]||"Toni"))
           ),
           h("div",{style:{display:"flex",gap:8,alignItems:"center"}},
@@ -660,40 +711,41 @@ function App(){
 
       // === RESUMEN ===
       tab==="resumen"&&h(React.Fragment,null,
+        isToday&&h(Hoy,{t,rd,sl,hrv,workouts:data.scheduled_workouts,onPlan:goPlan}),
         // Rings — BB shows current + max
         h("div",{style:{display:"flex",justifyContent:"space-around",flexWrap:"wrap",gap:6,marginBottom:14}},
           // Body Battery ring with current + max
           h("div",{style:{display:"flex",flexDirection:"column",alignItems:"center",gap:4}},
             h(Ring,{value:bbCurrent,max:100,color:A.bat},
               h("span",{style:{fontSize:20,fontWeight:700,color:t.tx}},bbCurrent),
-              h("span",{style:{fontSize:9,color:t.sb}},"%")
+              h("span",{style:{fontSize:11,color:t.sb}},"%")
             ),
-            h("span",{style:{fontSize:10,fontWeight:600,color:t.sb}},"Body Battery"),
-            h("span",{style:{fontSize:9,color:t.mt}},"máx "+bbMax)
+            h("span",{style:{fontSize:11,fontWeight:600,color:t.sb}},"Body Battery"),
+            h("span",{style:{fontSize:11,color:t.mt}},"máx "+bbMax)
           ),
-          [{l:"Sueño",v:sl.score||0,m:100,c:A.sleep,u:"pts"},{l:"Readiness",v:rd.score||0,m:100,c:(rd.score||0)>=70?A.bat:A.stress,u:""},{l:"VO₂",v:vo2,m:60,c:A.vo2,u:"ml/kg"}].map((m,i)=>
+          [{l:"Sueño",v:sl.score||0,m:100,c:A.sleep,u:"pts"},{l:"Readiness",v:rd.score||0,m:100,c:rdColor(rd.score||0),u:""},{l:"VO₂",v:vo2,m:60,c:A.vo2,u:"ml/kg"}].map((m,i)=>
             h("div",{key:i,style:{display:"flex",flexDirection:"column",alignItems:"center",gap:4}},
-              h(Ring,{value:m.v,max:m.m,color:m.c},h("span",{style:{fontSize:20,fontWeight:700,color:t.tx}},m.v),h("span",{style:{fontSize:9,color:t.sb}},m.u)),
-              h("span",{style:{fontSize:10,fontWeight:600,color:t.sb}},m.l)
+              h(Ring,{value:m.v,max:m.m,color:m.c},h("span",{style:{fontSize:20,fontWeight:700,color:t.tx}},m.v),h("span",{style:{fontSize:11,color:t.sb}},m.u)),
+              h("span",{style:{fontSize:11,fontWeight:600,color:t.sb}},m.l)
             )
           )
         ),
         // Quick stats — 2 rows
         h("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:8}},
           [{i:"👣",v:(d.steps||0).toLocaleString(),u:"pasos"},{i:"🔥",v:(d.calories_total||0).toLocaleString(),u:"kcal"},{i:"❤️",v:d.resting_hr||"—",u:"bpm rep."},{i:"⚡",v:d.active_minutes||"—",u:"min act."}].map((s,i)=>
-            h("div",{key:i,style:{background:t.cd,borderRadius:10,padding:"8px 4px",border:"1px solid "+t.bd,textAlign:"center"}},h("div",{style:{fontSize:15}},s.i),h("div",{style:{fontSize:16,fontWeight:700,color:t.tx}},s.v),h("div",{style:{fontSize:9,color:t.mt}},s.u))
+            h("div",{key:i,style:{background:t.cd,borderRadius:10,padding:"8px 4px",border:"1px solid "+t.bd,textAlign:"center"}},h("div",{style:{fontSize:15}},s.i),h("div",{style:{fontSize:16,fontWeight:700,color:t.tx}},s.v),h("div",{style:{fontSize:11,color:t.mt}},s.u))
           )
         ),
         // Extra stats row
         h("div",{style:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:14}},
           [{i:"🪜",v:d.floors_climbed||0,u:"pisos"},{i:"📏",v:d.distance_km||0,u:"km"},{i:"😰",v:d.avg_stress||"—",u:"estrés"},{i:"🫁",v:resp.avg||"—",u:"rpm"}].map((s,i)=>
-            h("div",{key:i,style:{background:t.cd,borderRadius:10,padding:"8px 4px",border:"1px solid "+t.bd,textAlign:"center"}},h("div",{style:{fontSize:15}},s.i),h("div",{style:{fontSize:16,fontWeight:700,color:t.tx}},s.v),h("div",{style:{fontSize:9,color:t.mt}},s.u))
+            h("div",{key:i,style:{background:t.cd,borderRadius:10,padding:"8px 4px",border:"1px solid "+t.bd,textAlign:"center"}},h("div",{style:{fontSize:15}},s.i),h("div",{style:{fontSize:16,fontWeight:700,color:t.tx}},s.v),h("div",{style:{fontSize:11,color:t.mt}},s.u))
           )
         ),
         // HRV + SpO2
         h("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}},
           [{ic:"💓",l:"HRV",v:hrv.last_night_avg||hrv.weekly_avg||"—",u:"ms",sub:hrv.status||""},{ic:"🩸",l:"SpO₂",v:d.avg_spo2||"—",u:"%"},{ic:"🫀",l:"FC máx",v:d.max_hr||"—",u:"bpm"}].map((s,i)=>
-            h("div",{key:i,style:{background:t.cd,borderRadius:10,padding:"10px 8px",border:"1px solid "+t.bd,textAlign:"center"}},h("div",{style:{fontSize:16}},s.ic),h("div",{style:{fontSize:20,fontWeight:700,color:t.tx}},s.v),h("div",{style:{fontSize:9,color:t.mt}},s.u),h("div",{style:{fontSize:10,fontWeight:600,color:t.sb,marginTop:2}},s.l),s.sub&&h("div",{style:{fontSize:8,color:s.sub==="LOW"?A.stress:s.sub==="BALANCED"?A.bat:t.mt}},s.sub))
+            h("div",{key:i,style:{background:t.cd,borderRadius:10,padding:"10px 8px",border:"1px solid "+t.bd,textAlign:"center"}},h("div",{style:{fontSize:16}},s.ic),h("div",{style:{fontSize:20,fontWeight:700,color:t.tx}},s.v),h("div",{style:{fontSize:11,color:t.mt}},s.u),h("div",{style:{fontSize:11,fontWeight:600,color:t.sb,marginTop:2}},s.l),s.sub&&h("div",{style:{fontSize:10,color:s.sub==="LOW"?A.stress:s.sub==="BALANCED"?A.bat:t.mt}},s.sub))
           )
         ),
         // Sleep
@@ -703,7 +755,7 @@ function App(){
             h("div",{style:{display:"flex",borderRadius:6,overflow:"hidden",height:12}},
               [{w:sl.awake_min,c:"#f97066"},{w:sl.rem_min,c:"#a78bfa"},{w:sl.light_min,c:"#60a5fa"},{w:sl.deep_min,c:"#1e3a5f"}].map((p,i)=>h("div",{key:i,style:{flex:p.w||1,background:p.c}}))),
             h("div",{style:{display:"flex",gap:10,flexWrap:"wrap"}},
-              [{l:"Despierto",c:"#f97066",m:sl.awake_min},{l:"REM",c:"#a78bfa",m:sl.rem_min},{l:"Ligero",c:"#60a5fa",m:sl.light_min},{l:"Profundo",c:"#1e3a5f",m:sl.deep_min}].map((p,i)=>h("div",{key:i,style:{display:"flex",alignItems:"center",gap:4}},h("div",{style:{width:6,height:6,borderRadius:"50%",background:p.c}}),h("span",{style:{fontSize:10,color:t.sb}},p.l),h("span",{style:{fontSize:10,fontWeight:700,color:t.tx}},Math.floor((p.m||0)/60)+"h"+(p.m||0)%60+"m"))))
+              [{l:"Despierto",c:"#f97066",m:sl.awake_min},{l:"REM",c:"#a78bfa",m:sl.rem_min},{l:"Ligero",c:"#60a5fa",m:sl.light_min},{l:"Profundo",c:"#1e3a5f",m:sl.deep_min}].map((p,i)=>h("div",{key:i,style:{display:"flex",alignItems:"center",gap:4}},h("div",{style:{width:6,height:6,borderRadius:"50%",background:p.c}}),h("span",{style:{fontSize:11,color:t.sb}},p.l),h("span",{style:{fontSize:11,fontWeight:700,color:t.tx}},Math.floor((p.m||0)/60)+"h"+(p.m||0)%60+"m"))))
           )
         ),
         // Sleep Week trend
@@ -713,9 +765,9 @@ function App(){
         // HR timeline
         hrH.length>0&&h(Card,{title:"Frecuencia Cardíaca",accent:A.hr,t,style:{marginBottom:14}},
           h("div",{style:{display:"flex",gap:16,marginBottom:4}},
-            [{l:"Reposo",v:d.resting_hr,c:A.bat},{l:"Mín",v:d.min_hr,c:A.steps},{l:"Máx",v:d.max_hr,c:A.hr}].map((s,i)=>h("div",{key:i,style:{display:"flex",alignItems:"center",gap:4}},h("div",{style:{width:6,height:6,borderRadius:"50%",background:s.c}}),h("span",{style:{fontSize:10,color:t.sb}},s.l),h("span",{style:{fontSize:11,fontWeight:700,color:t.tx}},s.v||"—")))
+            [{l:"Reposo",v:d.resting_hr,c:A.bat},{l:"Mín",v:d.min_hr,c:A.steps},{l:"Máx",v:d.max_hr,c:A.hr}].map((s,i)=>h("div",{key:i,style:{display:"flex",alignItems:"center",gap:4}},h("div",{style:{width:6,height:6,borderRadius:"50%",background:s.c}}),h("span",{style:{fontSize:11,color:t.sb}},s.l),h("span",{style:{fontSize:11,fontWeight:700,color:t.tx}},s.v||"—")))
           ),
-          h(ResponsiveContainer,{width:"100%",height:80},h(AreaChart,{data:hrH,margin:{top:0,right:0,left:-25,bottom:0}},h(XAxis,{dataKey:"h",axisLine:false,tickLine:false,tick:{fontSize:9,fill:t.mt},interval:4}),h(YAxis,{hide:true,domain:[40,110]}),h(Tooltip,{contentStyle:t.tip,formatter:v=>[v+" bpm",""]}),h(Area,{type:"monotone",dataKey:"hr",stroke:A.hr,strokeWidth:2,fill:A.hr,fillOpacity:0.1})))
+          h(ResponsiveContainer,{width:"100%",height:80},h(AreaChart,{data:hrH,margin:{top:0,right:0,left:-25,bottom:0}},h(XAxis,{dataKey:"h",axisLine:false,tickLine:false,tick:{fontSize:10,fill:t.mt},interval:4}),h(YAxis,{hide:true,domain:[40,110]}),h(Tooltip,{contentStyle:t.tip,formatter:v=>[v+" bpm",""]}),h(Area,{type:"monotone",dataKey:"hr",stroke:A.hr,strokeWidth:2,fill:A.hr,fillOpacity:0.1})))
         ),
         // Stress timeline
         stressH.length>0&&h(Card,{title:"Estrés",accent:A.stress,t,style:{marginBottom:14}},
@@ -747,7 +799,7 @@ function App(){
         ),
         // Activities preview
         isToday&&h(Card,{title:"Últimas actividades",t},
-          acts.slice(0,4).map((a,i)=>h("div",{key:i,onClick:()=>setSel(a),style:{display:"flex",alignItems:"center",gap:10,padding:"7px 0",cursor:"pointer",borderBottom:i<3?"1px solid "+t.bd:"none"}},h("div",{style:{width:34,height:34,borderRadius:8,background:(SC[a.sport]||"#666")+"15",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}},a.icon||SI[a.sport]||"🏋️"),h("div",{style:{flex:1}},h("div",{style:{fontSize:12,fontWeight:600,color:t.tx}},a.name),h("div",{style:{fontSize:10,color:t.sb}},(a.date_formatted||a.date)+" · "+a.distance+"km")),h("span",{style:{fontSize:16,color:t.mt}},"›"))),
+          acts.slice(0,4).map((a,i)=>h("div",{key:i,onClick:()=>setSel(a),style:{display:"flex",alignItems:"center",gap:10,padding:"7px 0",cursor:"pointer",borderBottom:i<3?"1px solid "+t.bd:"none"}},h("div",{style:{width:34,height:34,borderRadius:8,background:(SC[a.sport]||"#666")+"15",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}},a.icon||SI[a.sport]||"🏋️"),h("div",{style:{flex:1}},h("div",{style:{fontSize:12,fontWeight:600,color:t.tx}},a.name),h("div",{style:{fontSize:11,color:t.sb}},(a.date_formatted||a.date)+" · "+a.distance+"km")),h("span",{style:{fontSize:16,color:t.mt}},"›"))),
           h("button",{onClick:()=>setTab("actividades"),style:{width:"100%",padding:"7px",marginTop:6,border:"none",borderRadius:8,background:t.ph,color:t.sb,fontSize:11,fontWeight:600,cursor:"pointer"}},"Ver todas →")
         )
       ),
@@ -756,13 +808,13 @@ function App(){
       tab==="rendimiento"&&h(React.Fragment,null,
         h(Card,{title:"Fitness · Fatiga · Forma",accent:A.fit,t,style:{marginBottom:14}},
           h("div",{style:{display:"flex",justifyContent:"space-around",marginBottom:8}},
-            h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:22,fontWeight:700,color:A.fit}},fit.ctl||"—"),h("div",{style:{fontSize:10,color:t.sb}},"Fitness")),
-            h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:22,fontWeight:700,color:A.fat}},fit.atl||"—"),h("div",{style:{fontSize:10,color:t.sb}},"Fatiga")),
-            h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:22,fontWeight:700,color:(fit.tsb||0)>=0?A.bat:A.hr}},(fit.tsb>0?"+":"")+(fit.tsb||"—")),h("div",{style:{fontSize:10,color:t.sb}},"Forma"))
+            h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:22,fontWeight:700,color:A.fit}},fit.ctl||"—"),h("div",{style:{fontSize:11,color:t.sb}},"Fitness")),
+            h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:22,fontWeight:700,color:A.fat}},fit.atl||"—"),h("div",{style:{fontSize:11,color:t.sb}},"Fatiga")),
+            h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:22,fontWeight:700,color:(fit.tsb||0)>=0?A.bat:A.hr}},(fit.tsb>0?"+":"")+(fit.tsb||"—")),h("div",{style:{fontSize:11,color:t.sb}},"Forma"))
           ),
           data.fitness?.timeline?.length>0&&h(ResponsiveContainer,{width:"100%",height:120},h(LineChart,{data:data.fitness.timeline,margin:{top:5,right:5,left:-25,bottom:0}},h(XAxis,{dataKey:"date",hide:true}),h(YAxis,{hide:true,domain:[-30,70]}),h(Tooltip,{contentStyle:t.tip}),h(Line,{type:"monotone",dataKey:"ctl",stroke:A.fit,strokeWidth:2,dot:false,name:"Fitness"}),h(Line,{type:"monotone",dataKey:"atl",stroke:A.fat,strokeWidth:2,dot:false,name:"Fatiga"}),h(Line,{type:"monotone",dataKey:"tsb",stroke:A.bat,strokeWidth:1.5,dot:false,name:"Forma"}))),
           h("div",{style:{fontSize:11,color:t.sb,textAlign:"center"}},(fit.emoji||"")+" "+(fit.advice||"")),
-          fit.warmup&&h("div",{style:{fontSize:10,color:t.mt,textAlign:"center",marginTop:4}},"Solo "+fit.history_days+" días de historial: el Fitness aún se está asentando")
+          fit.warmup&&h("div",{style:{fontSize:11,color:t.mt,textAlign:"center",marginTop:4}},"Solo "+fit.history_days+" días de historial: el Fitness aún se está asentando")
         ),
         h(Card,{title:"Carga — quién mide qué",accent:A.fat,t,style:{marginBottom:14}},
           h("div",{style:{fontSize:11,color:t.sb,marginBottom:8}},
@@ -778,7 +830,7 @@ function App(){
               h("div",{style:{width:4,alignSelf:"stretch",background:r.c,borderRadius:2}}),
               h("div",{style:{flex:1,minWidth:0}},
                 h("div",{style:{fontSize:12,fontWeight:700,color:t.tx}},r.l),
-                h("div",{style:{fontSize:10,color:t.mt}},r.s)),
+                h("div",{style:{fontSize:11,color:t.mt}},r.s)),
               h("div",{style:{fontSize:18,fontWeight:700,color:r.c}},r.v))),
           acwr.ratio?h("div",{style:{marginTop:8,paddingTop:8,borderTop:"1px solid "+t.bd,fontSize:11,color:t.sb,textAlign:"center"}},
             (acwr.emoji||"")+" Ratio agudo:crónico "+acwr.ratio+" — "+(acwr.risk||"")+" (zona segura 0,8–1,3)"):null
@@ -787,17 +839,17 @@ function App(){
           h("div",{style:{fontSize:11,color:t.sb,marginBottom:4}},"VO₂ Max "+vo2+" ml/kg/min "+
             (data.vo2max_source==="garmin_running"?"(medido por Garmin corriendo)":"(estimado desde el FTP — sincroniza Garmin para el real)")+
             " · FTP "+(data.profile?.ftp||"—")+"W"),
-          races.map((r,i)=>h("div",{key:i,style:{display:"flex",alignItems:"center",padding:"8px 0",borderBottom:i<races.length-1?"1px solid "+t.bd:"none"}},h("span",{style:{width:55,fontSize:13,fontWeight:700,color:t.tx}},r.distance),h("div",{style:{flex:1,marginRight:8}},h("div",{style:{height:6,background:t.ph,borderRadius:3,overflow:"hidden"}},h("div",{style:{width:Math.min(100,r.km/42.195*100)+"%",height:"100%",background:"linear-gradient(90deg,"+A.vo2+","+A.fit+")",borderRadius:3}}))),h("span",{style:{width:65,fontSize:14,fontWeight:700,color:t.tx,textAlign:"right"}},r.time),h("span",{style:{width:55,fontSize:10,color:t.sb,textAlign:"right"}},r.pace)))
+          races.map((r,i)=>h("div",{key:i,style:{display:"flex",alignItems:"center",padding:"8px 0",borderBottom:i<races.length-1?"1px solid "+t.bd:"none"}},h("span",{style:{width:55,fontSize:13,fontWeight:700,color:t.tx}},r.distance),h("div",{style:{flex:1,marginRight:8}},h("div",{style:{height:6,background:t.ph,borderRadius:3,overflow:"hidden"}},h("div",{style:{width:Math.min(100,r.km/42.195*100)+"%",height:"100%",background:"linear-gradient(90deg,"+A.vo2+","+A.fit+")",borderRadius:3}}))),h("span",{style:{width:65,fontSize:14,fontWeight:700,color:t.tx,textAlign:"right"}},r.time),h("span",{style:{width:55,fontSize:11,color:t.sb,textAlign:"right"}},r.pace)))
         ),
-        h(Card,{title:"Training Readiness",accent:(rd.score||0)>=70?A.bat:A.stress,t,style:{marginBottom:14}},
-          h("div",{style:{textAlign:"center",marginBottom:8}},h(Ring,{value:rd.score||0,max:100,size:100,stroke:9,color:(rd.score||0)>=70?A.bat:A.stress},h("span",{style:{fontSize:28,fontWeight:700,color:t.tx}},rd.score||0),h("span",{style:{fontSize:9,color:t.sb}},"/ 100"))),
+        h(Card,{title:"Training Readiness",accent:rdColor(rd.score||0),t,style:{marginBottom:14}},
+          h("div",{style:{textAlign:"center",marginBottom:8}},h(Ring,{value:rd.score||0,max:100,size:100,stroke:9,color:rdColor(rd.score||0)},h("span",{style:{fontSize:28,fontWeight:700,color:t.tx}},rd.score||0),h("span",{style:{fontSize:11,color:t.sb}},"/ 100"))),
           rd.breakdown&&Object.entries(rd.breakdown).map(([k,v],i)=>h("div",{key:i,style:{display:"flex",alignItems:"center",gap:8,marginBottom:4}},h("span",{style:{width:85,fontSize:11,fontWeight:600,color:t.tx}},k==="sleep"?"Sueño":k==="hrv"?"HRV":k==="body_battery"?"Body Battery":"Carga"),h("div",{style:{flex:1,height:8,background:t.ph,borderRadius:4,overflow:"hidden"}},h("div",{style:{width:(v.value||0)+"%",height:"100%",background:[A.sleep,A.fit,A.bat,A.fat][i],borderRadius:4}})),h("span",{style:{width:28,fontSize:11,fontWeight:700,color:t.tx,textAlign:"right"}},v.value||0)))
         ),
         h(Card,{title:"Volumen — 3 semanas",t},
           h("div",{style:{display:"flex",justifyContent:"space-around"}},
-            h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:20,fontWeight:700,color:t.tx}},vol21.km.toFixed(0)),h("div",{style:{fontSize:10,color:t.sb}},"km")),
-            h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:20,fontWeight:700,color:t.tx}},Math.round(vol21.elev).toLocaleString()),h("div",{style:{fontSize:10,color:t.sb}},"m desnivel")),
-            h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:20,fontWeight:700,color:t.tx}},vol21.n),h("div",{style:{fontSize:10,color:t.sb}},"actividades"))
+            h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:20,fontWeight:700,color:t.tx}},vol21.km.toFixed(0)),h("div",{style:{fontSize:11,color:t.sb}},"km")),
+            h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:20,fontWeight:700,color:t.tx}},Math.round(vol21.elev).toLocaleString()),h("div",{style:{fontSize:11,color:t.sb}},"m desnivel")),
+            h("div",{style:{textAlign:"center"}},h("div",{style:{fontSize:20,fontWeight:700,color:t.tx}},vol21.n),h("div",{style:{fontSize:11,color:t.sb}},"actividades"))
           )
         )
       ),
@@ -815,19 +867,19 @@ function App(){
             h("div",{style:{display:"flex",alignItems:"center",gap:6}},(a.effort||0)>0&&h("div",{style:{padding:"3px 10px",borderRadius:12,fontSize:11,fontWeight:700,background:(a.effort||0)>100?t.bR.b:(a.effort||0)>50?t.bY.b:t.bG.b,color:(a.effort||0)>100?t.bR.f:(a.effort||0)>50?t.bY.f:t.bG.f}},"RE "+a.effort),h("span",{style:{fontSize:18,color:t.mt}},"›"))
           ),
           h("div",{style:{display:"flex",gap:16,flexWrap:"wrap"}},
-            [{l:"Distancia",v:a.distance+" km"},{l:"Tiempo",v:a.time},{l:"Desnivel",v:"↑"+a.elevation+"m"}].map((s,j)=>h("div",{key:j},h("div",{style:{fontSize:13,fontWeight:700,color:t.tx}},s.v),h("div",{style:{fontSize:10,color:t.sb}},s.l))),
-            a.pace&&h("div",null,h("div",{style:{fontSize:13,fontWeight:700,color:t.tx}},a.pace+"/km"),h("div",{style:{fontSize:10,color:t.sb}},"Ritmo")),
-            a.avg_speed&&h("div",null,h("div",{style:{fontSize:13,fontWeight:700,color:t.tx}},a.avg_speed),h("div",{style:{fontSize:10,color:t.sb}},"Vel.")),
-            a.avg_watts&&h("div",null,h("div",{style:{fontSize:13,fontWeight:700,color:t.tx}},Math.round(a.avg_watts)+"W"),h("div",{style:{fontSize:10,color:t.sb}},"Potencia"))
+            [{l:"Distancia",v:a.distance+" km"},{l:"Tiempo",v:a.time},{l:"Desnivel",v:"↑"+a.elevation+"m"}].map((s,j)=>h("div",{key:j},h("div",{style:{fontSize:13,fontWeight:700,color:t.tx}},s.v),h("div",{style:{fontSize:11,color:t.sb}},s.l))),
+            a.pace&&h("div",null,h("div",{style:{fontSize:13,fontWeight:700,color:t.tx}},a.pace+"/km"),h("div",{style:{fontSize:11,color:t.sb}},"Ritmo")),
+            a.avg_speed&&h("div",null,h("div",{style:{fontSize:13,fontWeight:700,color:t.tx}},a.avg_speed),h("div",{style:{fontSize:11,color:t.sb}},"Vel.")),
+            a.avg_watts&&h("div",null,h("div",{style:{fontSize:13,fontWeight:700,color:t.tx}},Math.round(a.avg_watts)+"W"),h("div",{style:{fontSize:11,color:t.sb}},"Potencia"))
           )
         ))
       ),
 
       // === COACH ===
-      tab==="coach"&&h(Coach,{t,ctx:coachCtx,onClearCtx:()=>setCoachCtx(null),plan:data.scheduled_workouts,planAt:data.meta?.plan_synced})
+      tab==="coach"&&h(Coach,{t,ctx:coachCtx,onClearCtx:()=>setCoachCtx(null),plan:data.scheduled_workouts,planAt:data.meta?.plan_synced,focus:planFocus})
     ),
     sel&&h(Detail,{a:sel,onClose:()=>setSel(null),t,onAsk:askCoach}),
-    h("div",{style:{textAlign:"center",padding:"0 0 20px",fontSize:10,color:t.mt}},"Garmin + Strava · "+(data.profile?.name||"Mi Salud"))
+    h("div",{style:{textAlign:"center",padding:"0 0 20px",fontSize:11,color:t.mt}},"Garmin + Strava · "+(data.profile?.name||"Mi Salud"))
   );
 }
 ReactDOM.render(h(App),document.getElementById("root"));

@@ -161,7 +161,11 @@ public class SaludWidget extends AppWidgetProvider {
         v.setTextViewText(R.id.widget_battery, number(d.optInt("body_battery", 0)));
         v.setTextViewText(R.id.widget_hr, number(d.optInt("resting_hr", 0)));
         v.setTextViewText(R.id.widget_sleep, sleep(d.optString("sleep_text", "")));
-        v.setTextViewText(R.id.widget_readiness, number(d.optInt("readiness", 0)));
+        int readiness = d.optInt("readiness", 0);
+        v.setTextViewText(R.id.widget_readiness, number(readiness));
+        // Mismo semáforo que la app: verde ≥70, ámbar ≥50, rojo por debajo
+        v.setTextColor(R.id.widget_readiness, Color.parseColor(
+                readiness >= 70 ? "#10B981" : readiness >= 50 ? "#F59E0B" : readiness > 0 ? "#EF4444" : "#64748B"));
 
         v.setTextViewText(R.id.widget_form, note != null ? note : form(d));
         v.setTextViewText(R.id.widget_updated, ago(at));
@@ -272,6 +276,15 @@ public class SaludWidget extends AppWidgetProvider {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         v.setOnClickPendingIntent(R.id.widget_root,
                 PendingIntent.getActivity(context, widgetId, open, flags));
+
+        // La fila del entreno abre directamente la pestaña Coach
+        Intent coach = new Intent(context, MainActivity.class)
+                .setAction(Intent.ACTION_VIEW)
+                .setData(Uri.parse("misalud://coach/" + widgetId))
+                .putExtra(MainActivity.EXTRA_TAB, "coach")
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        v.setOnClickPendingIntent(R.id.widget_workout_row,
+                PendingIntent.getActivity(context, widgetId + 100000, coach, flags));
 
         Intent refresh = new Intent(context, SaludWidget.class)
                 .setAction(ACTION_REFRESH)
