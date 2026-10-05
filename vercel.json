@@ -60,10 +60,6 @@
       "use": "@vercel/python"
     },
     {
-      "src": "api/compliance.py",
-      "use": "@vercel/python"
-    },
-    {
       "src": "public/**",
       "use": "@vercel/static"
     }
@@ -119,7 +115,7 @@
     },
     {
       "src": "/api/compliance(.*)",
-      "dest": "/api/compliance.py"
+      "dest": "/api/plan.py"
     },
     {
       "src": "/(.*)",
