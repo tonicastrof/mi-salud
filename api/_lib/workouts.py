@@ -44,9 +44,26 @@ def mark_done(workouts, activities):
                 continue
             used.add(a.get("id"))
             w["done"] = True
-            w["done_activity"] = {"name": a.get("name") or "",
+            w["done_activity"] = {"id": a.get("id"),
+                                  "name": a.get("name") or "",
                                   "distance": a.get("distance") or 0,
                                   "time": a.get("time") or ""}
             break
         out.append(w)
     return out
+
+
+def attach_compliance(workouts, load):
+    """Añade la valoración ya calculada (si la hay) a los entrenos hechos.
+    Solo lee lo guardado: calcularla pide las vueltas a Strava."""
+    from .compliance import cache_key
+    for w in workouts:
+        aid = (w.get("done_activity") or {}).get("id")
+        if w.get("done") and aid:
+            try:
+                c = load(cache_key(aid, w))
+            except Exception:
+                c = None
+            if c:
+                w["compliance"] = c
+    return workouts

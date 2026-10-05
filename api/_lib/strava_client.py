@@ -352,6 +352,20 @@ class StravaClient:
             })
         return zones
 
+    def get_laps(self, activity_id: int) -> list:
+        """Vueltas tal cual las grabó el reloj: con un entreno estructurado,
+        una por paso. Es lo que se compara con el plan."""
+        raw = self._get(f"activities/{activity_id}/laps")
+        if not isinstance(raw, list):
+            return []
+        return [{
+            "elapsed": lap.get("elapsed_time") or 0,
+            "moving": lap.get("moving_time") or 0,
+            "distance": lap.get("distance") or 0,
+            "hr": round(lap.get("average_heartrate") or 0),
+            "watts": round(lap.get("average_watts") or 0),
+        } for lap in sorted(raw, key=lambda l: l.get("lap_index") or 0)]
+
     # ─── ZONAS ───
 
     def get_zones(self) -> dict:

@@ -196,6 +196,11 @@ public class SaludWidget extends AppWidgetProvider {
         if (done) {
             // Hecho hoy: lo que hiciste y lo siguiente que toca
             StringBuilder sb = new StringBuilder("Hecho");
+            // Nota frente al plan, si ya se calculó al abrir la app
+            int score = w.optInt("score", -1);
+            if (score >= 0) {
+                sb.append(' ').append(score).append("/100");
+            }
             String doneText = w.optString("done_text", "");
             if (!doneText.isEmpty()) {
                 sb.append(" · ").append(doneText);

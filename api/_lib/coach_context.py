@@ -296,6 +296,10 @@ def build_plan_block(workouts) -> str:
         lines.append(head)
         if w.get("description"):
             lines.append(f"  {w['description']}")
+        if w.get("compliance"):
+            # Ya hecho y comparado: lo que importa es cómo salió, no los pasos
+            lines.extend("  " + l for l in w["compliance"]["summary"].split("\n"))
+            continue
         lines.extend(_steps_text(w.get("steps")))
     return ("## Próximos entrenos programados en Garmin\n"
             "Esto es lo que el plan del reloj tiene previsto. Tenlo en cuenta al "

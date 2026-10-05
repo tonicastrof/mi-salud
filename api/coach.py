@@ -26,7 +26,7 @@ from _lib.cache import load
 from _lib.analytics import build_analytics
 from _lib.coach_context import build_context, build_plan_block
 from _lib.auth import authorized
-from _lib.workouts import mark_done
+from _lib.workouts import mark_done, attach_compliance
 
 MODEL = os.getenv("COACH_MODEL", "claude-sonnet-5")
 MAX_TOKENS = 3000
@@ -239,8 +239,8 @@ class handler(BaseHTTPRequestHandler):
         metrics = load("metrics") or {}
         activities = strava.get("activities", []) or []
         context = build_context(garmin, strava, metrics, build_analytics(activities))
-        plan = build_plan_block(mark_done((load("garmin_plan") or {}).get("workouts"),
-                                          activities))
+        plan = build_plan_block(attach_compliance(
+            mark_done((load("garmin_plan") or {}).get("workouts"), activities), load))
         if plan:
             context += "\n" + plan
 

@@ -24,6 +24,7 @@ mi-salud-final/
 │   ├── day.py                ← Endpoint: datos de Garmin de un día concreto
 │   ├── plan.py               ← Endpoint: próximos entrenos de Garmin Coach / calendario
 │   ├── login.py              ← Endpoint: inicio de sesión de la app (cookie)
+│   ├── compliance.py         ← Endpoint: entreno pedido vs. hecho, paso a paso
 │   └── coach.py              ← Endpoint: entrenador IA (Claude)
 ├── public/index.html         ← La app (React sin compilar, se sirve tal cual)
 ├── tests/                    ← Tests (pytest), se pasan en GitHub Actions

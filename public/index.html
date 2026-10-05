@@ -385,6 +385,7 @@ function Plan({t,workouts,syncedAt,onAsk,focus}){
   const[ws,setWs]=useState(workouts||[]);
   const[at,setAt]=useState(syncedAt);
   const[open,setOpen]=useState(null);
+  const[verPlan,setVerPlan]=useState(null);
   const[busy,setBusy]=useState(false);
   const[err,setErr]=useState("");
   useEffect(()=>{setWs(workouts||[]);setAt(syncedAt)},[workouts,syncedAt]);
@@ -421,12 +422,58 @@ function Plan({t,workouts,syncedAt,onAsk,focus}){
           w.coach&&h("span",{title:"Garmin Coach",style:{flex:"0 0 auto",padding:"2px 6px",borderRadius:10,fontSize:11,fontWeight:700,background:t.ph,color:t.sb}},"Coach"),
           h("span",{style:{fontSize:14,color:t.mt,transform:abierto?"rotate(90deg)":"none",transition:"transform 0.2s"}},"›")),
         abierto&&h("div",{style:{padding:"0 0 12px 44px",display:"flex",flexDirection:"column",gap:8}},
-          w.phrase&&h("div",{style:{fontSize:11,fontWeight:700,color:col,textTransform:"uppercase",letterSpacing:"0.05em"}},String(w.phrase).replace(/_/g," ")),
           w.description&&h("div",{style:{fontSize:12,color:t.sb,lineHeight:1.5}},w.description),
-          (w.steps||[]).length?h(Steps,{steps:w.steps,t}):h("div",{style:{fontSize:11,color:t.mt}},"Garmin no ha dado el detalle de los pasos de este entreno."),
-          onAsk&&h("button",{onClick:()=>onAsk(w),style:{alignSelf:"flex-start",border:"none",background:t.ph,borderRadius:8,padding:"5px 10px",color:t.sb,cursor:"pointer",fontSize:11,fontWeight:600}},"🤖 Preguntar por este entreno")));
+          w.done&&h(Cumplimiento,{t,w,onAsk}),
+          // Hecho: el plan ya sale en la comparación; el original, plegado
+          w.done&&(w.steps||[]).length>0&&h("button",{onClick:()=>setVerPlan(verPlan===i?null:i),style:{alignSelf:"flex-start",border:"none",background:"transparent",padding:0,color:t.sb,cursor:"pointer",fontSize:11,fontWeight:700}},
+            (verPlan===i?"▾":"▸")+" Ver plan original"),
+          (!w.done||verPlan===i)&&((w.steps||[]).length?h(Steps,{steps:w.steps,t}):h("div",{style:{fontSize:11,color:t.mt}},"Garmin no ha dado el detalle de los pasos de este entreno.")),
+          onAsk&&!w.done&&h("button",{onClick:()=>onAsk(w),style:{alignSelf:"flex-start",border:"none",background:t.ph,borderRadius:8,padding:"5px 10px",color:t.sb,cursor:"pointer",fontSize:11,fontWeight:600}},"🤖 Preguntar por este entreno")));
     }),
     at&&h("div",{style:{fontSize:11,color:t.mt,marginTop:8}},"Actualizado "+new Date(at).toLocaleString("es",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})));
+}
+
+// ─── Lo pedido frente a lo hecho ───
+const _cumpl={};
+// Una sola petición por entreno aunque lo pidan la tarjeta Hoy y el Coach a la vez
+function cargarCumpl(w){
+  const k=w.date+"|"+w.title;
+  if(!_cumpl[k])_cumpl[k]=api("compliance?date="+w.date+"&title="+encodeURIComponent(w.title)).catch(()=>({error:"Sin conexión"}));
+  return _cumpl[k];
+}
+const scoreColor=(n)=>n>=85?A.bat:n>=65?A.stress:A.hr;
+function useCumpl(w){
+  const[c,setC]=useState(null);
+  useEffect(()=>{let vivo=true;if(w&&w.done)cargarCumpl(w).then(r=>{if(vivo)setC(r)});return()=>{vivo=false}},[w&&w.date,w&&w.title,w&&w.done]);
+  return c;
+}
+function Cumplimiento({t,w,onAsk}){
+  const c=useCumpl(w);
+  const[copiado,setCopiado]=useState(false);
+  if(!c)return h("div",{style:{fontSize:12,color:t.mt}},"⏳ Comparando con lo que hiciste...");
+  if(c.error||c.pending)return h("div",{style:{fontSize:12,color:t.mt}},c.error||"Aún no hay actividad que comparar.");
+  const col=c.score!=null?scoreColor(c.score):t.mt;
+  const ICO={ok:["✓",A.bat],warn:["≈",A.stress],bad:["✗",A.hr]};
+  const copiar=()=>{try{navigator.clipboard.writeText(c.summary).then(()=>{setCopiado(true);setTimeout(()=>setCopiado(false),2500)})}catch(e){}};
+  return h("div",{style:{background:t.ph,borderRadius:12,padding:"12px 12px",display:"flex",flexDirection:"column",gap:9}},
+    h("div",{style:{display:"flex",alignItems:"center",gap:12}},
+      c.score!=null&&h("div",{style:{width:52,height:52,borderRadius:26,border:"4px solid "+col,display:"flex",alignItems:"center",justifyContent:"center",flex:"0 0 auto",fontSize:17,fontWeight:800,color:col}},c.score),
+      h("div",{style:{flex:1}},
+        h("div",{style:{fontSize:11,fontWeight:700,color:t.sb,textTransform:"uppercase",letterSpacing:"0.05em"}},"Pedido vs. hecho"),
+        h("div",{style:{fontSize:13,fontWeight:700,color:t.tx,marginTop:2,lineHeight:1.35}},c.verdict))),
+    (c.notes||[]).length>0&&h("ul",{style:{margin:0,paddingLeft:18,display:"flex",flexDirection:"column",gap:5}},
+      c.notes.map((n,i)=>h("li",{key:i,style:{fontSize:12,color:t.tx,lineHeight:1.5}},n))),
+    (c.steps||[]).length>0&&h("div",{style:{display:"flex",flexDirection:"column",gap:4,borderTop:"1px solid "+t.bd,paddingTop:8}},
+      c.steps.map((st,i)=>{const[ic,ico]=ICO[st.status]||["·",t.mt];
+        return h("div",{key:i,style:{display:"flex",gap:8,alignItems:"flex-start"}},
+          h("span",{style:{width:14,fontSize:13,fontWeight:800,color:ico,flex:"0 0 auto"}},ic),
+          h("div",{style:{flex:1,minWidth:0}},
+            h("div",{style:{fontSize:12,fontWeight:700,color:t.tx}},st.label,
+              st.issues.length>0&&h("span",{style:{fontWeight:600,color:ico}}," · "+st.issues.join(", "))),
+            h("div",{style:{fontSize:11,color:t.sb}},st.planned+"  →  ",h("span",{style:{color:t.tx}},st.done))))})),
+    h("div",{style:{display:"flex",gap:6,flexWrap:"wrap"}},
+      onAsk&&h("button",{onClick:()=>onAsk(w,c.summary),style:{border:"none",background:t.cd,borderRadius:8,padding:"6px 10px",color:t.sb,cursor:"pointer",fontSize:11,fontWeight:600}},"🤖 Comentarlo con el entrenador"),
+      h("button",{onClick:copiar,style:{border:"none",background:t.cd,borderRadius:8,padding:"6px 10px",color:copiado?A.bat:t.sb,cursor:"pointer",fontSize:11,fontWeight:600}},copiado?"✓ Copiado":"📋 Copiar para Claude")));
 }
 
 // ─── Hoy: cómo estás y qué toca ───
@@ -441,6 +488,7 @@ function Hoy({t,rd,sl,hrv,workouts,onPlan}){
   const esHoy=!!w&&w.date===today,hecho=!!w&&!!w.done,tp=w?wtipo(w):null;
   const sig=hecho?luego[0]:null,tpSig=sig?wtipo(sig):null;
   const act=(w&&w.done_activity)||{};
+  const cum=useCumpl(hecho?w:null);
   const score=rd.score||0,col=rdColor(score);
   const duro=esHoy&&!hecho&&tp&&DUROS.includes(tp.l);
   const aviso=duro&&score>0&&score<50?"Readiness baja para un "+tp.l.toLowerCase()+": valora cambiarlo por un rodaje suave o moverlo un día."
@@ -464,7 +512,9 @@ function Hoy({t,rd,sl,hrv,workouts,onPlan}){
       h("div",{style:{flex:1,minWidth:0}},
         h("div",{style:{fontSize:11,fontWeight:700,color:w?wcol:t.mt,textTransform:"uppercase",letterSpacing:"0.05em"}},
           hecho?"Hoy"+(tp?" · "+tp.l:""):esHoy?"Hoy toca"+(tp?" · "+tp.l:""):w?"Hoy: nada programado":"Sin entrenos programados",
-          hecho&&h("span",{style:{marginLeft:8,padding:"1px 7px",borderRadius:10,background:t.bG.b,color:t.bG.f,letterSpacing:0}},"✓ Hecho")),
+          hecho&&h("span",{style:{marginLeft:8,padding:"1px 7px",borderRadius:10,background:t.bG.b,color:t.bG.f,letterSpacing:0}},"✓ Hecho"),
+          hecho&&cum&&cum.score!=null&&h("span",{style:{marginLeft:6,padding:"1px 7px",borderRadius:10,background:scoreColor(cum.score)+"22",color:scoreColor(cum.score),letterSpacing:0}},cum.score+"/100")),
+        hecho&&cum&&cum.verdict&&h("div",{style:{fontSize:12,color:t.sb,marginTop:3}},cum.verdict),
         w&&h("div",{style:{fontSize:14,fontWeight:700,color:t.tx,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},
           (esHoy?"":"Próximo: "+cuando(w.date).toLowerCase()+" · ")+w.title),
         hecho?(act.distance||act.time)&&h("div",{style:{fontSize:11,color:t.sb,marginTop:1}},
@@ -544,8 +594,10 @@ function Coach({t,ctx,onClearCtx,plan,planAt,focus}){
   },[secret,ctx]);
 
   // Deja la pregunta escrita; si el chat no está activo, sirve para copiarla junto al informe
-  const preguntarEntreno=useCallback((w)=>{
-    setInput("¿Cómo afronto el entreno «"+w.title+"» de "+cuando(w.date).toLowerCase()+" según cómo voy de fatiga y sueño?");
+  const preguntarEntreno=useCallback((w,resumen)=>{
+    setInput(resumen
+      ?"Valora cómo hice este entreno frente a lo que pedía el plan y dime qué cambiarías la próxima vez:\n\n"+resumen
+      :"¿Cómo afronto el entreno «"+w.title+"» de "+cuando(w.date).toLowerCase()+" según cómo voy de fatiga y sueño?");
     if(end.current)end.current.scrollIntoView({behavior:"smooth",block:"end"});
   },[]);
 

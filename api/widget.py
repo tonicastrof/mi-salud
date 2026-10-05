@@ -14,7 +14,7 @@ from http.server import BaseHTTPRequestHandler
 from _lib.cache import load
 from _lib.metrics import current_body_battery
 from _lib.tz import hoy
-from _lib.workouts import mark_done
+from _lib.workouts import mark_done, attach_compliance
 from _lib.auth import authorized, deny
 
 
@@ -78,6 +78,8 @@ def _next_workout(workouts):
     if todays:
         out = _describe(todays[0], today)
         act = todays[0].get("done_activity") or {}
+        score = (todays[0].get("compliance") or {}).get("score")
+        out["score"] = score if score is not None else -1
         out["done_text"] = " · ".join(x for x in [
             _km(act["distance"]) if act.get("distance") else "",
             act.get("time") or ""] if x)
@@ -142,7 +144,8 @@ class handler(BaseHTTPRequestHandler):
                 "distance": last.get("distance") or 0,
                 "time": last.get("time") or "",
             } if last else None,
-            "workout": _next_workout(mark_done(plan.get("workouts"), s.get("activities"))),
+            "workout": _next_workout(attach_compliance(
+                mark_done(plan.get("workouts"), s.get("activities")), load)),
         }
 
         body = json.dumps(payload, default=str).encode()

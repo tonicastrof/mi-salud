@@ -712,8 +712,38 @@ def _parse_steps(steps):
             "duration": _step_duration(st),
             "target": _step_target(st),
             "note": st.get("description") or None,
+            # En número, para comparar con lo que hiciste (_lib/compliance.py)
+            "end": _step_end(st),
+            "goal": _step_goal(st),
         })
     return out
+
+
+def _step_end(step):
+    cond = _key(step, "endCondition")
+    val = step.get("endConditionValue")
+    if cond in ("time", "distance") and val:
+        return {"type": cond, "value": float(val)}
+    return None
+
+
+def _step_goal(step):
+    """Objetivo del paso: ritmo en s/km (rápido, lento), FC en ppm o zona."""
+    kind = _key(step, "targetType")
+    lo, hi = step.get("targetValueOne"), step.get("targetValueTwo")
+    zone = step.get("zoneNumber")
+    if kind == "pace.zone" and lo and hi:
+        return {"type": "pace", "fast": round(1000 / max(lo, hi)), "slow": round(1000 / min(lo, hi))}
+    if kind == "speed.zone" and lo and hi:
+        return {"type": "speed", "lo": round(min(lo, hi) * 3.6, 1), "hi": round(max(lo, hi) * 3.6, 1)}
+    if kind == "heart.rate.zone":
+        if zone:
+            return {"type": "hr_zone", "zone": int(zone)}
+        if lo and hi:
+            return {"type": "hr", "lo": int(min(lo, hi)), "hi": int(max(lo, hi))}
+    if kind in ("power.zone", "power") and lo and hi and not zone:
+        return {"type": "power", "lo": int(min(lo, hi)), "hi": int(max(lo, hi))}
+    return None
 
 
 def _parse_workout(item, detail):
