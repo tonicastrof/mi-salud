@@ -7,11 +7,16 @@ se pueden emparejar 1:1 con los pasos del plan y mirar en cada una:
 - la duración o distancia (¿recortaste o te pasaste?),
 - el objetivo: ritmo, FC (por zona o en ppm), velocidad o potencia.
 
-Con eso sale una nota de 0 a 100 y unas frases de entrenador. Si las vueltas no
-cuadran con los pasos (saltaste pasos, pulsaste vuelta de más...), se compara
-solo el total.
+Si las vueltas no cuadran con los pasos (lo normal con la vuelta automática
+cada km), se corta la grabación segundo a segundo de Strava por los tiempos y
+distancias de cada paso del plan, y se mide cada tramo. Así además se sabe qué
+parte del tiempo estuviste dentro del rango, no solo la media. Solo si tampoco
+hay grabación se compara el total.
+
+Con eso sale una nota de 0 a 100 y unas frases de entrenador.
 """
 import hashlib
+from bisect import bisect_left
 
 EASY = {"warmup": "calentamiento", "recovery": "recuperaciones",
         "rest": "descansos", "cooldown": "vuelta a la calma"}
@@ -21,7 +26,7 @@ POINTS = {"ok": 1.0, "warn": 0.5, "bad": 0.0}
 def cache_key(activity_id, workout):
     """Las vueltas de una actividad no cambian: el resultado se guarda para siempre."""
     tag = hashlib.sha1(f"{workout.get('date')}|{workout.get('title')}".encode()).hexdigest()[:10]
-    return f"compliance:v1:{activity_id}:{tag}"
+    return f"compliance:v2:{activity_id}:{tag}"
 
 
 # ─── Formatos ───
@@ -65,7 +70,106 @@ def align(flat, laps):
         laps.pop()
     if not flat or len(laps) != len(flat):
         return None
+    # Mismo número no basta: con la vuelta automática cada km puede coincidir
+    # por casualidad. Cada vuelta tiene que parecerse a su paso.
+    medidos = [(st["end"], lp) for st, lp in zip(flat, laps) if _has_end(st)]
+    if medidos:
+        parecidos = sum(0.6 <= (lp["elapsed"] if e["type"] == "time" else lp["distance"]) / e["value"] <= 1.4
+                        for e, lp in medidos)
+        if parecidos < 0.7 * len(medidos):
+            return None
     return list(zip(flat, laps))
+
+
+def _has_end(step):
+    return bool(step.get("end") and step["end"].get("value"))
+
+
+def segment(flat, streams):
+    """Corta la grabación en un tramo por paso, según la duración o distancia
+    de cada uno. Un paso «hasta pulsar vuelta» se queda con lo que sobra entre
+    los de antes y los de después; con más de uno así no se puede: None."""
+    t = (streams or {}).get("time") or []
+    d = (streams or {}).get("distance") or []
+    n = len(t)
+    if n < 2 or not flat:
+        return None
+    if len(d) != n:
+        d = None
+    opens = [k for k, st in enumerate(flat) if not _has_end(st)]
+    if len(opens) > 1:
+        return None
+    if any(st["end"]["type"] == "distance" for st in flat if _has_end(st)) and d is None:
+        return None
+
+    def arr(end):
+        return t if end["type"] == "time" else d
+
+    bounds = [None] * len(flat)
+    stop = opens[0] if opens else len(flat)
+    i = 0
+    for k in range(stop):                      # hacia delante hasta el paso abierto
+        end = flat[k]["end"]
+        a = arr(end)
+        j = bisect_left(a, a[i] + end["value"], i)
+        bounds[k] = (i, min(j, n - 1), j >= n)
+        i = min(j, n - 1)
+    if opens:
+        j = n - 1
+        for k in range(len(flat) - 1, stop, -1):   # hacia atrás desde el final
+            end = flat[k]["end"]
+            a = arr(end)
+            i0 = max(bisect_left(a, a[j] - end["value"], 0, j), i)
+            bounds[k] = (i0, j, False)
+            j = i0
+        bounds[stop] = (i, max(i, j), False)
+    return [_segment_stats(streams, i0, i1, cut) for i0, i1, cut in bounds]
+
+
+def _segment_stats(st, i0, i1, truncated):
+    t = st["time"]
+    d = st.get("distance") or []
+    mv = st.get("moving") or []
+    hr = st.get("heartrate") or []
+    w = st.get("watts") or []
+    v = st.get("velocity_smooth") or []
+    dts, moving, hrs, ws, vs = [], 0, [], [], []
+    for k in range(i0 + 1, i1 + 1):
+        dt = t[k] - t[k - 1]
+        if dt <= 0 or dt > 30:          # huecos de pausa: no cuentan
+            continue
+        is_moving = mv[k] if k < len(mv) else True
+        dts.append(dt)
+        vs.append((v[k] if k < len(v) else None) if is_moving else None)
+        hrs.append(hr[k] if k < len(hr) else None)
+        ws.append(w[k] if k < len(w) else None)
+        if is_moving:
+            moving += dt
+
+    def wmean(vals):
+        num = sum(x * dt for x, dt in zip(vals, dts) if x)
+        den = sum(dt for x, dt in zip(vals, dts) if x)
+        return round(num / den) if den else 0
+
+    return {
+        "elapsed": t[i1] - t[i0],
+        "moving": moving,
+        "distance": (d[i1] - d[i0]) if d else 0,
+        "hr": wmean(hrs),
+        "watts": wmean(ws),
+        "derived": True,
+        "truncated": truncated,
+        "samples": {"dt": dts, "v": vs, "hr": hrs},
+    }
+
+
+def _in_range(samples, key, lo, hi):
+    """% del tiempo (en movimiento) dentro de [lo, hi]."""
+    pares = [(x, dt) for x, dt in zip(samples[key], samples["dt"]) if x]
+    total = sum(dt for _, dt in pares)
+    if total < 30:
+        return None
+    return round(100 * sum(dt for x, dt in pares if lo <= x <= hi) / total)
 
 
 def _zone_bounds(zone, hr_zones):
@@ -88,7 +192,12 @@ def _range_check(value, lo, hi, tol):
 def evaluate_step(step, lap, hr_zones=None):
     checks = []          # (estado, qué, sentido)
     end = step.get("end")
-    if end and end.get("value"):
+    if lap.get("derived") and lap["elapsed"] < 5:
+        # La actividad terminó antes de llegar a este paso
+        return _skipped(step)
+    # Con un tramo cortado por el plan la duración cuadra por construcción:
+    # solo dice algo si la actividad se acabó antes de tiempo
+    if end and end.get("value") and (not lap.get("derived") or lap.get("truncated")):
         done = lap["elapsed"] if end["type"] == "time" else lap["distance"]
         ratio = done / end["value"]
         status = "ok" if abs(ratio - 1) <= 0.10 else "warn" if abs(ratio - 1) <= 0.20 else "bad"
@@ -97,6 +206,11 @@ def evaluate_step(step, lap, hr_zones=None):
     goal = step.get("goal") or {}
     pace = lap["moving"] / (lap["distance"] / 1000) if lap["distance"] > 50 and lap["moving"] else None
     hit = None
+    samples = lap.get("samples")
+    in_range = None
+    if samples and goal.get("type") == "pace":
+        # velocidad en m/s; el rango de ritmo con la misma tolerancia del 2 %
+        in_range = _in_range(samples, "v", 1000 / (goal["slow"] * 1.02), 1000 / (goal["fast"] * 0.98))
     if goal.get("type") == "pace" and pace:
         # Ritmo: menos segundos = más rápido
         if pace < goal["fast"] * 0.98:
@@ -112,6 +226,8 @@ def evaluate_step(step, lap, hr_zones=None):
                   else (goal["lo"], goal["hi"]))
         if bounds:
             lo, hi = bounds
+            if samples:
+                in_range = _in_range(samples, "hr", lo, hi)
             if lap["hr"] < lo:
                 checks.append(("warn" if lo - lap["hr"] <= 5 else "bad", "FC", "baja"))
             elif lap["hr"] > hi:
@@ -127,6 +243,11 @@ def evaluate_step(step, lap, hr_zones=None):
         st, sense = _range_check(lap["watts"], goal["lo"], goal["hi"], 0.03)
         checks.append((st, "potencia", sense))
 
+    # Media buena pero ritmo a tirones (menos de la mitad del tiempo en rango)
+    if in_range is not None and in_range < 50 and checks and checks[-1][0] == "ok" \
+            and checks[-1][1] != "duración":
+        checks[-1] = ("warn", checks[-1][1], "irregular")
+
     order = ["ok", "warn", "bad"]
     status = max((c[0] for c in checks), key=order.index) if checks else None
     issues = [f"{what} {sense}".strip() for st, what, sense in checks if st != "ok"]
@@ -138,6 +259,8 @@ def evaluate_step(step, lap, hr_zones=None):
         done.append(f"{_pace(pace)}/km")
     if lap.get("hr"):
         done.append(f"{lap['hr']} ppm")
+    if in_range is not None:
+        done.append(f"{in_range}% en rango")
 
     return {
         "label": step.get("label") + (f" {step['rep']}/{step['reps']}" if step.get("rep") else ""),
@@ -155,6 +278,18 @@ def evaluate_step(step, lap, hr_zones=None):
         "hr_bounds": hit,
         "goal": goal,
         "short": any(w == "duración" and s == "corto" and st == "bad" for st, w, s in checks),
+        "in_range": in_range,
+    }
+
+
+def _skipped(step):
+    return {
+        "label": step.get("label") + (f" {step['rep']}/{step['reps']}" if step.get("rep") else ""),
+        "type": step.get("type"),
+        "planned": " · ".join(x for x in [step.get("duration"), step.get("target")] if x) or "libre",
+        "done": "no llegaste a hacerlo",
+        "status": "bad", "points": 0.0, "issues": ["no hecho"], "pace": None, "hr": 0,
+        "hr_bounds": None, "goal": step.get("goal") or {}, "short": True, "in_range": None,
     }
 
 
@@ -173,6 +308,29 @@ def _verdict(score):
 def _coach_notes(rows):
     notes = []
     work = [r for r in rows if r["type"] == "interval" and r["goal"].get("type") == "pace" and r["pace"]]
+    if len(rows) == 1 and work:
+        # Rodaje de un solo paso (los «Base» de Garmin Coach): ritmo medio y regularidad
+        r, g = work[0], work[0]["goal"]
+        rango = f"{_pace(g['fast'])}–{_pace(g['slow'])}"
+        if "ritmo rápido" in r["issues"]:
+            notes.append(f"Ritmo medio {_pace(r['pace'])}/km, más rápido que el objetivo ({rango}). "
+                         "En un rodaje así, ir más rápido no suma: el objetivo es acumular "
+                         "volumen fácil y llegar fresco a los días de calidad.")
+        elif "ritmo lento" in r["issues"]:
+            notes.append(f"Ritmo medio {_pace(r['pace'])}/km, más lento que el objetivo ({rango}). "
+                         "Si fue por cuestas o calor, perfecto; si fue cansancio, tenlo en cuenta.")
+        else:
+            notes.append(f"Ritmo medio {_pace(r['pace'])}/km, dentro del objetivo ({rango}).")
+        if r["in_range"] is not None:
+            if r["in_range"] >= 80:
+                notes.append(f"Muy regular: el {r['in_range']}% del tiempo dentro del rango.")
+            elif r["in_range"] >= 50:
+                notes.append(f"El {r['in_range']}% del tiempo dentro del rango: bien, con algún "
+                             "tramo fuera (cuestas, cruces o cambios de ritmo).")
+            else:
+                notes.append(f"Solo el {r['in_range']}% del tiempo dentro del rango: la media cuadra "
+                             "pero fuiste a tirones. Intenta un ritmo más constante.")
+        work = []
     if work:
         avg = sum(r["pace"] for r in work) / len(work)
         g = work[0]["goal"]
@@ -230,15 +388,24 @@ def _coach_notes(rows):
     return notes
 
 
-def compare(workout, activity, laps, hr_zones=None):
-    """Compara el entreno programado con la actividad hecha (y sus vueltas)."""
+def compare(workout, activity, laps, hr_zones=None, streams=None):
+    """Compara el entreno programado con la actividad hecha: por vueltas si
+    encajan con los pasos; si no, cortando la grabación por el plan."""
     flat = flatten(workout.get("steps"))
+    if len(flat) == 1 and flat[0].get("type") == "interval":
+        flat = [dict(flat[0], label="Carrera")]      # un rodaje no es «una serie»
     pairs = align(flat, laps)
+    method = "laps" if pairs else None
+    if not pairs and streams:
+        segs = segment(flat, streams)
+        if segs:
+            pairs, method = list(zip(flat, segs)), "streams"
     total_time = sum(l["elapsed"] for l in laps or []) or activity.get("moving_time_sec") or 0
     total_dist = sum(l["distance"] for l in laps or []) or (activity.get("distance") or 0) * 1000
 
     out = {"title": workout.get("title"), "date": workout.get("date"),
-           "activity": activity.get("name") or "", "aligned": bool(pairs), "steps": []}
+           "activity": activity.get("name") or "", "aligned": bool(pairs),
+           "method": method or "totals", "steps": []}
 
     if pairs:
         rows = [evaluate_step(s, l, hr_zones) for s, l in pairs]

@@ -80,3 +80,76 @@ def test_paso_con_fc_por_ppm():
     assert evaluate_step(st, lap(600, 2000, 155))["status"] == "ok"
     assert evaluate_step(st, lap(600, 2000, 163))["status"] == "warn"
     assert evaluate_step(st, lap(600, 2000, 175))["status"] == "bad"
+
+
+# ─── Con vuelta automática cada km: se corta la grabación por el plan ───
+
+def grabacion(tramos, hr=140):
+    """tramos: [(segundos, velocidad m/s, fc)] → streams de Strava a 1 Hz."""
+    t, d, v, h, mv = [0], [0.0], [0.0], [hr], [True]
+    for secs, vel, fc in tramos:
+        for _ in range(int(secs)):
+            t.append(t[-1] + 1)
+            d.append(d[-1] + vel)
+            v.append(vel)
+            h.append(fc)
+            mv.append(True)
+    return {"time": t, "distance": d, "velocity_smooth": v, "heartrate": h, "moving": mv}
+
+
+def km_laps(streams):
+    """Vueltas automáticas cada km, como las graba el reloj."""
+    out, last_t, last_d = [], 0, 0
+    for tt, dd in zip(streams["time"], streams["distance"]):
+        if dd - last_d >= 1000:
+            out.append(lap(tt - last_t, dd - last_d))
+            last_t, last_d = tt, dd
+    out.append(lap(streams["time"][-1] - last_t, streams["distance"][-1] - last_d))
+    return out
+
+
+BASE_COACH = {"date": "2026-10-05", "title": "Base", "duration_sec": 1800, "steps": [
+    {"type": "interval", "label": "Serie", "duration": "30 min", "target": "4:29–5:08 /km",
+     "end": {"type": "time", "value": 1800}, "goal": {"type": "pace", "fast": 269, "slow": 308}}]}
+
+
+def test_base_de_garmin_coach_con_vueltas_por_km():
+    st = grabacion([(1805, 1000 / 290, 142)])          # 30 min a 4:50/km
+    laps_ = km_laps(st)
+    assert len(laps_) == 7                              # 6 km enteros + resto
+    c = compare(BASE_COACH, {"name": "Rodaje"}, laps_, HR_ZONES, st)
+    assert c["method"] == "streams" and c["score"] == 100
+    assert c["steps"][0]["label"] == "Carrera"
+    assert "100% en rango" in c["steps"][0]["done"]
+    assert any("Ritmo medio 4:50/km, dentro del objetivo" in n for n in c["notes"])
+    assert any("Muy regular" in n for n in c["notes"])
+
+
+def test_base_demasiado_rapido_y_a_tirones():
+    st = grabacion([(600, 1000 / 240, 160), (600, 1000 / 330, 140), (600, 1000 / 240, 160)])
+    c = compare(BASE_COACH, {"name": "Rodaje"}, km_laps(st), HR_ZONES, st)
+    assert c["steps"][0]["status"] != "ok"
+    texto = " ".join(c["notes"])
+    assert "% del tiempo dentro del rango" in texto
+
+
+def test_series_cortando_la_grabacion():
+    st = grabacion([(900, 2.9, 138)] +
+                   [(240, 1000 / 236, 170), (120, 2.6, 150)] * 4 +
+                   [(400, 2.8, 130)])
+    serie = dict(SERIE, end={"type": "time", "value": 240})
+    w = {"date": "2026-10-05", "title": "Umbral", "steps": [WARM, {"repeat": 4, "steps": [serie, REC]},
+                                                              dict(COOL, end=None)]}
+    laps_ = km_laps(st)
+    assert len(laps_) == 10            # tantas vueltas como pasos, por casualidad
+    c = compare(w, {"name": "X"}, laps_, HR_ZONES, st)
+    assert c["method"] == "streams" and len(c["steps"]) == 10
+    assert "Las series fueron rápidas" in " ".join(c["notes"])
+    assert c["steps"][-1]["done"].startswith("6:4")    # la vuelta a la calma se queda el resto
+
+
+def test_se_acabo_antes_de_tiempo():
+    st = grabacion([(1200, 1000 / 290, 142)])          # 20 de 30 min
+    c = compare(BASE_COACH, {"name": "Rodaje"}, km_laps(st), HR_ZONES, st)
+    assert "duración corto" in c["steps"][0]["issues"]
+    assert any("Recortaste" in n for n in c["notes"])

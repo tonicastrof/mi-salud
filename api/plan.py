@@ -25,7 +25,7 @@ from _lib.cache import save, load
 from _lib.tz import ahora
 from _lib.auth import authorized, deny
 from _lib.workouts import mark_done
-from _lib.compliance import compare, cache_key
+from _lib.compliance import compare, cache_key, align, flatten
 from _lib.strava_client import StravaClient
 
 
@@ -106,8 +106,13 @@ class handler(BaseHTTPRequestHandler):
                     return
                 laps = s.get_laps(act["id"])
                 hr_zones = (strava.get("zones") or {}).get("heartrate") or []
-                result = compare(w, act, laps, hr_zones)
-                if laps:
+                # Con la vuelta automática cada km las vueltas no son los pasos:
+                # entonces hace falta la grabación entera para cortarla por el plan
+                streams = None
+                if align(flatten(w.get("steps")), laps) is None:
+                    streams = s.get_raw_streams(act["id"])
+                result = compare(w, act, laps, hr_zones, streams)
+                if laps or streams:
                     save(key, result)
             self._r(200, result)
         except Exception as e:

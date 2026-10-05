@@ -329,6 +329,18 @@ class StravaClient:
                                  "cadence", "watts") if series.get(k)]
         return {"points": out, "available": available}
 
+    def get_raw_streams(self, activity_id: int) -> dict:
+        """Series completas, segundo a segundo, sin remuestrear: para cortar la
+        actividad por los pasos del plan cuando las vueltas no sirven."""
+        raw = self._get(
+            f"activities/{activity_id}/streams",
+            {"keys": "time,distance,heartrate,velocity_smooth,watts,moving",
+             "key_by_type": "true"},
+        )
+        if not isinstance(raw, dict):
+            return {}
+        return {k: (v or {}).get("data") or [] for k, v in raw.items() if isinstance(v, dict)}
+
     def get_activity_zones(self, activity_id: int) -> list:
         """Tiempo en cada zona de FC/potencia de una actividad."""
         raw = self._get(f"activities/{activity_id}/zones")
