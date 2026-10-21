@@ -1,0 +1,36 @@
+name: Sondeo carreirasgalegas (temporal)
+on:
+  push:
+    branches: ["claude/**"]
+    paths: [".github/workflows/probe-carreiras.yml"]
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Descargar y resumir
+        run: |
+          UA="Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/126 Mobile Safari/537.36"
+          for u in https://www.carreirasgalegas.com/events https://www.carreirasgalegas.com/; do
+            echo "=================== $u"
+            curl -sSL -A "$UA" -D headers.txt -o page.html -w "HTTP %{http_code} size %{size_download} final %{url_effective}\n" "$u" || true
+            cat headers.txt | head -25
+            echo "--- scripts/links"
+            grep -oE '(src|href)="[^"]+"' page.html | sort -u | head -80
+            echo "--- api/json hints"
+            grep -oE '[a-zA-Z0-9_/.:-]*(api|json|graphql|ajax|wp-json)[a-zA-Z0-9_/.?=&-]*' page.html | sort -u | head -60
+            echo "--- ld+json"
+            grep -c 'application/ld+json' page.html || true
+            echo "--- __NEXT_DATA__/nuxt"
+            grep -oE '__NEXT_DATA__|__NUXT__|ng-version|data-reactroot|livewire|inertia' page.html | sort | uniq -c
+          done
+          echo "=================== HEAD OF /events (texto)"
+          curl -sSL -A "$UA" https://www.carreirasgalegas.com/events -o ev.html
+          python3 - <<'PY'
+          import re,html
+          s=open('ev.html',encoding='utf-8',errors='replace').read()
+          print(s[:6000])
+          print("....... MIDDLE")
+          i=s.find('event')
+          body=s[s.find('<body'):]
+          print(body[:20000])
+          PY
