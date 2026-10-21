@@ -9,23 +9,28 @@ concurrency:
 jobs:
   probe:
     runs-on: ubuntu-24.04
-    timeout-minutes: 4
+    timeout-minutes: 5
     steps:
-      - name: Buscar la API en main.js
+      - name: Rutas de la API
         run: |
           UA="Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/126 Mobile Safari/537.36"
-          curl -sSL -A "$UA" https://www.carreirasgalegas.com/main.b2bac07fc93cf91b.js -o main.js
-          ls -la main.js
+          B=https://www.carreirasgalegas.com
+          curl -sSL -A "$UA" $B/main.b2bac07fc93cf91b.js -o main.js
+          curl -sSL -A "$UA" $B/runtime.cd7b82f05d3877af.js -o runtime.js
           python3 - <<'PY'
-          import re
+          import re,subprocess
           s=open('main.js',encoding='utf-8',errors='replace').read()
-          urls=sorted(set(re.findall(r'https?://[A-Za-z0-9._/-]+',s)))
-          print("--- URLs"); [print(u) for u in urls[:80]]
-          print("--- strings con api/event")
-          strs=sorted(set(m for m in re.findall(r'"([^"\n]{2,120})"',s) if re.search(r'api|event|Event|race|carreir|calendar|inscri',m)))
-          for x in strs[:200]: print(repr(x))
-          print("--- contexto")
-          for kw in ['apiUrl','baseUrl','environment','/events','getEvents','urlApi']:
-              for m in list(re.finditer(re.escape(kw),s))[:6]:
-                  print(kw,'::',s[max(0,m.start()-200):m.start()+250].replace('\n',' '))
+          for u in ['https://api.web.carreirasgalegas.com','https://search.carreirasgalegas.com','https://api.tp.carreirasgalegas.com','https://races.blob.core.windows.net']:
+              for m in list(re.finditer(re.escape(u),s))[:3]:
+                  print('CTX',u,'::',s[max(0,m.start()-300):m.start()+200])
+          # claves del objeto environment
+          keys=set(re.findall(r'([A-Za-z_$][\w$]*):"https://(?:api\.web|search|api\.tp|ranking\.api)\.carreirasgalegas\.com',s))
+          print('KEYS',keys)
+          for k in keys:
+              hits=[m.start() for m in re.finditer(r'\.'+re.escape(k)+r'\b',s)]
+              print('==',k,len(hits))
+              for h in hits[:60]:
+                  print('  ',s[h-40:h+160].replace('\n',' '))
+          r=open('runtime.js',encoding='utf-8',errors='replace').read()
+          print('RUNTIME',r[:3000])
           PY
