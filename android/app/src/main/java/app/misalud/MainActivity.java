@@ -59,7 +59,7 @@ public class MainActivity extends Activity {
 
         SharedPreferences prefs = Config.prefs(this);
         baseUrl = Config.baseUrl(this);
-        bgColor = prefs.getInt(Config.KEY_BG, 0xFF0A0A0F);
+        bgColor = prefs.getInt(Config.KEY_BG, 0xFFFFFFFF);
 
         root = new FrameLayout(this);
         root.setBackgroundColor(bgColor);
