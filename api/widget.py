@@ -16,6 +16,7 @@ from _lib.metrics import current_body_battery
 from _lib.tz import hoy
 from _lib.workouts import mark_done, attach_compliance
 from _lib.auth import authorized, deny
+from _lib import races
 
 
 # Mismos tipos y colores que la tarjeta de la pestaña Coach (WTIPOS en index.html)
@@ -147,6 +148,12 @@ class handler(BaseHTTPRequestHandler):
             "workout": _next_workout(attach_compliance(
                 mark_done(plan.get("workouts"), s.get("activities")), load)),
         }
+
+        # Carrera apuntada de esta semana y pruebas nuevas (la app avisa con una notificación)
+        try:
+            payload["race"], payload["races_new"] = races.widget_info()
+        except Exception:
+            payload["race"], payload["races_new"] = None, {"count": 0, "key": "", "names": []}
 
         body = json.dumps(payload, default=str).encode()
         self.send_response(200)

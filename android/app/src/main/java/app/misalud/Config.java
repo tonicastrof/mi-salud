@@ -13,6 +13,8 @@ final class Config {
     static final String KEY_SNAPSHOT = "widget_snapshot";
     static final String KEY_SNAPSHOT_AT = "widget_snapshot_at";
     static final String KEY_TOKEN = "auth_token";
+    static final String KEY_RACES_NOTIFIED = "races_notified_key";
+    static final String KEY_NOTIF_ASKED = "notif_permission_asked";
     static final String AUTH_COOKIE = "ms_auth";
 
     private Config() {

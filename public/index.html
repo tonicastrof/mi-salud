@@ -56,6 +56,9 @@ const IC={
   walk:["M13 2.5a1.8 1.8 0 1 0 0 3.6a1.8 1.8 0 1 0 0-3.6z","M9 21l2-6 3 2v4M8 12l2-4 4 1 1 4 3 1"],
   swim:["M2 18c2 0 2-1.5 4-1.5s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 4 1.5 2-1.5 4-1.5","M7 13l4-3 3 3M15 6.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3z"],
   gym:["M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"],
+  flag:["M5 21V4","M5 4h11l-2 4 2 4H5"],
+  search:["M11 4a7 7 0 1 0 0 14a7 7 0 1 0 0-14z","M20 20l-3.5-3.5"],
+  check:["m5 12 5 5 9-10"],
 };
 function Ic({n,s,w,c,style}){
   return h("svg",{width:s||18,height:s||18,viewBox:"0 0 24 24",fill:"none",stroke:c||"currentColor",strokeWidth:w||2,strokeLinecap:"round",strokeLinejoin:"round","aria-hidden":true,style:{flex:"0 0 auto",display:"block",...(style||{})}},
@@ -575,7 +578,7 @@ function Hoy({t,rd,sl,hrv,workouts,onPlan}){
 }
 
 // ─── Entrenador IA ───
-function Coach({t,ctx,onClearCtx,plan,planAt,focus}){
+function Coach({t,ctx,onClearCtx,plan,planAt,focus,draft}){
   const[msgs,setMsgs]=useState(()=>{try{return JSON.parse(localStorage.getItem("coach_chat")||"[]")}catch(e){return[]}});
   const[input,setInput]=useState(ctx?("Analiza esta sesión: "+ctx.name):"");
   const[busy,setBusy]=useState(false);
@@ -591,6 +594,7 @@ function Coach({t,ctx,onClearCtx,plan,planAt,focus}){
   useEffect(()=>{try{localStorage.setItem("coach_chat",JSON.stringify(msgs.slice(-40)))}catch(e){}
     if(end.current)end.current.scrollIntoView({behavior:"smooth",block:"end"})},[msgs,busy]);
   useEffect(()=>{if(ctx)setInput("Analiza esta sesión: "+ctx.name)},[ctx]);
+  useEffect(()=>{if(draft)setInput(draft.text)},[draft]);
 
   const send=useCallback(async(text)=>{
     const q=(text||"").trim();
@@ -707,6 +711,199 @@ function Coach({t,ctx,onClearCtx,plan,planAt,focus}){
     msgs.length>0&&h("button",{onClick:()=>{setMsgs([]);setErr("")},style:{alignSelf:"center",marginTop:8,border:"none",background:"transparent",color:t.sb,fontSize:12,cursor:"pointer",padding:8}},"Borrar conversación"));
 }
 
+// ─── Carreras (Carreiras Galegas) ───
+const RT={Ruta:A.run,Trail:A.hike,Cross:A.stress,Pista:A.steps,Infantil:"#9ca3af"};
+const MESES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+const MESES_L=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+const DSEM=["dom","lun","mar","mié","jue","vie","sáb"];
+const DSEM_L=["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+const pDate=(s)=>{const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
+const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+const monday=(d)=>addDays(d,-((d.getDay()+6)%7));
+const daysTo=(s)=>{const t=new Date();t.setHours(0,0,0,0);return Math.round((pDate(s)-t)/864e5)};
+const enDias=(n)=>n<=0?"hoy":n===1?"mañana":"en "+n+" días";
+// Tu predicción de la tabla de Forma para la distancia de la carrera (si cuadra)
+function prediccion(r,preds){const km=(r.km||[])[0];if(!km)return null;
+  const p=(preds||[]).find(x=>x.km&&Math.abs(x.km-km)/km<0.1);return p?p.time:null}
+// Lo que se manda al servidor al apuntarse: la carrera tal cual, sin las marcas de la vista
+const raceSnap=(r)=>{const{is_new,signed,...x}=r;return x};
+
+function TypeTag({r,t}){const c=RT[r.type]||t.sb;return h("span",{style:{fontSize:11,fontWeight:600,color:c,background:c+"1f",borderRadius:5,padding:"1px 6px"}},r.type)}
+function NewTag(){return h("span",{style:{fontSize:11,fontWeight:700,color:"#fff",background:L.ac,borderRadius:5,padding:"1px 6px"}},"Nueva")}
+
+function SignBtn({r,t,onSign,big}){
+  const on=r.signed;
+  if(big)return h("button",{onClick:()=>onSign(r,!on),style:{height:48,width:"100%",borderRadius:12,fontSize:14,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+    border:"1.5px solid "+(on?A.bat:t.bd),background:on?A.bat:t.cd,color:on?"#fff":t.tx}},h(Ic,{n:"check",s:18,w:2.4}),on?"Apuntado":"Marcar como apuntado");
+  return h("button",{onClick:e=>{e.stopPropagation();onSign(r,!on)},"aria-label":on?"Quitar apuntado":"Marcar como apuntado","aria-pressed":on,
+    style:{width:44,height:44,flex:"0 0 auto",borderRadius:"50%",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",padding:0,
+      border:"1.5px solid "+(on?A.bat:t.bd),background:on?A.bat:t.cd,color:on?"#fff":t.mt}},h(Ic,{n:"check",s:20,w:2.4}));
+}
+
+function RaceRow({r,t,onSign,onOpen}){
+  const d=pDate(r.date),c=RT[r.type]||t.sb;
+  return h("div",{onClick:()=>onOpen(r),style:{background:t.cd,border:"1px solid "+t.bd,borderLeft:"3px solid "+(r.signed?A.bat:c),borderRadius:12,padding:12,display:"flex",gap:12,alignItems:"center",cursor:"pointer"}},
+    h("div",{style:{width:44,flex:"0 0 auto",textAlign:"center"}},
+      h("div",{style:{fontSize:11,fontWeight:600,color:t.sb,textTransform:"uppercase"}},DSEM[d.getDay()]),
+      h("div",{style:{fontSize:20,fontWeight:600,lineHeight:1.1,color:t.tx}},d.getDate()),
+      r.time&&h("div",{style:{fontSize:11,color:t.sb}},r.time)),
+    h("div",{style:{flex:1,minWidth:0}},
+      h("div",{style:{display:"flex",gap:6,flexWrap:"wrap",marginBottom:2}},h(TypeTag,{r,t}),r.is_new&&h(NewTag)),
+      h("div",{style:{fontSize:14,fontWeight:600,color:t.tx,lineHeight:1.3}},r.name),
+      h("div",{style:{fontSize:12,color:t.sb,marginTop:2}},[r.place,r.dist].filter(Boolean).join(" · "))),
+    h(SignBtn,{r,t,onSign}));
+}
+
+function RaceSheet({r,t,onClose,onSign,onAsk,preds}){
+  const d=pDate(r.date),n=daysTo(r.date),pred=prediccion(r,preds);
+  const cierra=r.deadline?daysTo(r.deadline):null;
+  const filas=[
+    r.dist&&{l:"Pruebas",v:r.dist},
+    r.deadline&&{l:"Inscripción",v:(cierra<0?"Cerrada (":"Cierra el ")+pDate(r.deadline).getDate()+" "+MESES[pDate(r.deadline).getMonth()]+(cierra<0?")":""),c:cierra!=null&&cierra<=3?t.bY.f:null},
+    r.price!=null&&r.price!==""&&{l:"Precio",v:typeof r.price==="number"?r.price+" €":String(r.price)},
+    r.start&&{l:"Salida",v:r.start},
+    r.circuit&&{l:"Circuito",v:r.circuit},
+  ].filter(Boolean);
+  return h("div",{onClick:onClose,style:{position:"fixed",inset:0,zIndex:100,background:"rgba(0,0,0,0.45)",display:"flex",justifyContent:"center",alignItems:"flex-end"}},
+    h("div",{onClick:e=>e.stopPropagation(),style:{width:"100%",maxWidth:560,maxHeight:"92vh",overflow:"auto",background:t.bg,borderRadius:"20px 20px 0 0"}},
+      h("div",{style:{background:t.cd,borderBottom:"1px solid "+t.bd,padding:"10px 16px 16px",display:"flex",flexDirection:"column",gap:12}},
+        h("div",{style:{alignSelf:"center",width:40,height:4,borderRadius:2,background:t.bd}}),
+        h("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12}},
+          h("div",{style:{minWidth:0}},
+            h("div",{style:{display:"flex",gap:6,flexWrap:"wrap",marginBottom:6}},h(TypeTag,{r,t}),r.is_new&&h(NewTag)),
+            h("div",{style:{fontSize:19,fontWeight:600,lineHeight:1.25,color:t.tx}},r.name),
+            h("div",{style:{fontSize:13,color:t.sb,marginTop:4}},
+              DSEM_L[d.getDay()].replace(/^./,c=>c.toUpperCase())+" "+d.getDate()+" de "+MESES_L[d.getMonth()]+
+              (r.time?" · "+r.time:"")+(r.place?" · "+r.place:"")+(r.province?" ("+r.province+")":""))),
+          h("button",{onClick:onClose,"aria-label":"Cerrar",style:{width:40,height:40,flex:"0 0 auto",border:"none",borderRadius:"50%",background:t.ph,color:t.sb,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}},h(Ic,{n:"close",s:18,w:2.2}))),
+        h(SignBtn,{r,t,onSign,big:true}),
+        r.signed&&h("div",{style:{fontSize:12,color:t.bG.f,textAlign:"center",marginTop:-4}},"Te lo recordaré esa semana en Resumen y en el widget")),
+      h("div",{style:{padding:16,display:"flex",flexDirection:"column",gap:14}},
+        h("div",{style:{display:"grid",gridTemplateColumns:"repeat("+(pred?3:2)+",minmax(0,1fr))",background:t.cd,border:"1px solid "+t.bd,borderRadius:12,padding:"12px 4px"}},
+          [{v:enDias(n),l:"cuenta atrás"},{v:(r.km&&r.km[0])?r.dist.split(" · ")[0]:"—",l:"distancia"},pred&&{v:pred,l:"tu predicción"}].filter(Boolean).map((x,i)=>
+            h("div",{key:i,style:{textAlign:"center",borderLeft:i?"1px solid "+t.ln:"none",padding:"0 4px"}},
+              h("div",{style:{fontSize:17,fontWeight:600,color:t.tx}},x.v),h("div",{style:{fontSize:12,color:t.sb}},x.l)))),
+        filas.length>0&&h("div",{style:{background:t.cd,border:"1px solid "+t.bd,borderRadius:12,padding:"4px 16px"}},
+          filas.map((f,i)=>h("div",{key:i,style:{display:"flex",justifyContent:"space-between",gap:12,padding:"11px 0",borderBottom:i<filas.length-1?"1px solid "+t.ln:"none"}},
+            h("span",{style:{fontSize:12,color:t.sb}},f.l),h("span",{style:{fontSize:13,fontWeight:600,color:f.c||t.tx,textAlign:"right"}},f.v)))),
+        h("a",{href:r.url,target:"_blank",rel:"noopener",style:{height:46,borderRadius:12,background:t.ac,color:t.acT,fontSize:14,fontWeight:600,textDecoration:"none",display:"flex",alignItems:"center",justifyContent:"center",gap:8}},"Ver e inscribirme en Carreiras Galegas",h(Ic,{n:"ext",s:15})),
+        onAsk&&h("button",{onClick:()=>onAsk(r),style:{height:44,borderRadius:12,border:"1px solid "+t.bd,background:t.cd,color:t.ac,fontSize:14,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}},h(Ic,{n:"chat",s:16}),"Preguntar al entrenador cómo prepararla"))));
+}
+
+function RaceCalendar({items,t,onOpen}){
+  const today=new Date();today.setHours(0,0,0,0);
+  const[ym,setYm]=useState(()=>{const n=items.find(r=>r.date>=localISO(today)),d=n?pDate(n.date):today;return[d.getFullYear(),d.getMonth()]});
+  // Abre en el próximo día con carrera (o en hoy si no hay ninguna)
+  const[sel,setSel]=useState(()=>{const n=items.find(r=>r.date>=localISO(today));return n?n.date:localISO(today)});
+  const byDate={};items.forEach(r=>{(byDate[r.date]=byDate[r.date]||[]).push(r)});
+  const first=new Date(ym[0],ym[1],1),start=monday(first);
+  const cells=[];for(let i=0;i<42;i++){const d=addDays(start,i);if(i>=35&&d.getMonth()!==ym[1])break;cells.push(d)}
+  const mover=(n)=>{const d=new Date(ym[0],ym[1]+n,1);setYm([d.getFullYear(),d.getMonth()])};
+  const selRaces=byDate[sel]||[];const sd=pDate(sel);
+  const navBtn=(n,lab,txt)=>h("button",{onClick:()=>mover(n),"aria-label":lab,style:{width:40,height:40,border:"none",background:t.ph,borderRadius:10,color:t.sb,fontSize:18,cursor:"pointer"}},txt);
+  return h(React.Fragment,null,
+    h("div",{style:{background:t.cd,border:"1px solid "+t.bd,borderRadius:12,padding:"14px 12px",display:"flex",flexDirection:"column",gap:10,marginBottom:14}},
+      h("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between"}},navBtn(-1,"Mes anterior","‹"),
+        h("div",{style:{fontSize:15,fontWeight:600,color:t.tx,textTransform:"capitalize"}},MESES_L[ym[1]]+" "+ym[0]),navBtn(1,"Mes siguiente","›")),
+      h("div",{style:{display:"grid",gridTemplateColumns:"repeat(7,minmax(0,1fr))",gap:4,textAlign:"center",fontSize:11,fontWeight:600,color:t.sb}},
+        ["L","M","X","J","V","S","D"].map((x,i)=>h("span",{key:i,style:{color:i>4?t.tx:t.sb}},x))),
+      h("div",{style:{display:"grid",gridTemplateColumns:"repeat(7,minmax(0,1fr))",gap:4}},
+        cells.map((d,i)=>{const iso=localISO(d),inM=d.getMonth()===ym[1],rs=byDate[iso]||[],on=sel===iso,signed=rs.some(r=>r.signed),isT=d.getTime()===today.getTime(),wk=i%7>4;
+          return h("button",{key:iso,onClick:()=>setSel(iso),"aria-label":d.getDate()+" de "+MESES_L[d.getMonth()]+", "+rs.length+" pruebas",
+            style:{height:48,padding:"4px 0 0",borderRadius:8,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,
+              border:signed?"2px solid "+A.bat:isT?"1.5px dashed "+t.sb:"1px solid transparent",background:on?t.tx:wk&&inM?t.ph:t.cd,color:on?t.bg:t.tx,opacity:!inM?0.3:d<today?0.55:1}},
+            h("span",{style:{fontSize:13,fontWeight:on||isT?700:500}},d.getDate()),
+            h("span",{style:{display:"flex",gap:3}},rs.slice(0,3).map((r,j)=>h(Dot,{key:j,c:RT[r.type]||t.sb,s:6}))))})),
+      h("div",{style:{display:"flex",flexWrap:"wrap",gap:"6px 14px",fontSize:11,color:t.sb,borderTop:"1px solid "+t.ln,paddingTop:10}},
+        Object.keys(RT).filter(k=>items.some(r=>r.type===k)).map(k=>h("span",{key:k,style:{display:"flex",alignItems:"center",gap:5}},h(Dot,{c:RT[k],s:7}),k)),
+        h("span",{style:{display:"flex",alignItems:"center",gap:5}},h("i",{style:{width:12,height:12,borderRadius:4,border:"2px solid "+A.bat}}),"Apuntado"))),
+    h("div",{style:{fontSize:14,fontWeight:600,color:t.tx,margin:"0 2px 8px"}},DSEM_L[sd.getDay()].replace(/^./,c=>c.toUpperCase())+" "+sd.getDate()+" de "+MESES_L[sd.getMonth()]),
+    selRaces.length?h("div",{style:{display:"flex",flexDirection:"column",gap:8}},selRaces.map(r=>
+      h("div",{key:r.id,onClick:()=>onOpen(r),style:{background:t.cd,border:"1px solid "+t.bd,borderLeft:"3px solid "+(r.signed?A.bat:RT[r.type]||t.sb),borderRadius:12,padding:"12px 14px",display:"flex",gap:12,alignItems:"center",cursor:"pointer"}},
+        h("div",{style:{flex:1,minWidth:0}},
+          h("div",{style:{fontSize:11,fontWeight:600,color:RT[r.type]||t.sb}},r.type+(r.time?" · "+r.time:"")),
+          h("div",{style:{fontSize:14,fontWeight:600,color:t.tx}},r.name),
+          h("div",{style:{fontSize:12,color:t.sb}},[r.place,r.dist].filter(Boolean).join(" · "))),
+        r.signed&&h("span",{style:{fontSize:12,fontWeight:600,color:t.bG.f}},"✓ Apuntado"))))
+      :h("div",{style:{fontSize:12,color:t.sb,background:t.cd,border:"1px dashed "+t.bd,borderRadius:12,padding:16,textAlign:"center"}},"Ese día no hay pruebas"));
+}
+
+function Carreras({t,data,onSign,onSeen,onOpen,onRefresh,busy}){
+  const[view,setView]=useState("agenda");
+  const[flt,setFlt]=useState("Todas");
+  const[q,setQ]=useState("");
+  const[prov,setProvRaw]=useState(()=>{try{return localStorage.getItem("races_prov")||""}catch(e){return""}});
+  const setProv=(v)=>{setProvRaw(v);try{localStorage.setItem("races_prov",v)}catch(e){}};
+  const[nWeeks,setNWeeks]=useState(6);
+  if(!data)return h("div",{style:{textAlign:"center",color:t.sb,fontSize:13,padding:"40px 0"}},h(Spin,null)," Cargando carreras…");
+  if(!data.configured&&!(data.items||[]).length)return h(Card,{title:"Carreras de Carreiras Galegas",accent:A.run,t},
+    h("div",{style:{fontSize:13,color:t.sb,lineHeight:1.5}},"Falta configurar la fuente. Añade en Vercel la variable ",h("code",{style:{background:t.ph,padding:"1px 5px",borderRadius:4}},"CARREIRAS_SEARCH_KEY"),
+      " (y, si hace falta, ",h("code",{style:{background:t.ph,padding:"1px 5px",borderRadius:4}},"CARREIRAS_SEARCH_INDEX"),") y pulsa Sincronizar."));
+  const items=data.items||[];
+  const provs=[...new Set(items.map(r=>r.province).filter(Boolean))].sort();
+  const nSigned=items.filter(r=>r.signed).length;
+  const types=["Todas",...Object.keys(RT).filter(k=>items.some(r=>r.type===k)),"Apuntadas"];
+  const norm=(s)=>(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+  const nq=norm(q);
+  const shown=items.filter(r=>(flt==="Todas"||(flt==="Apuntadas"?r.signed:r.type===flt))&&(!prov||r.province===prov||r.signed)&&
+    (!nq||norm(r.name+" "+(r.place||"")).includes(nq)));
+  // Agenda por semanas (de lunes a domingo), titulada por su fin de semana
+  const thisMon=monday(new Date());thisMon.setHours(0,0,0,0);
+  const groups=[];shown.forEach(r=>{const m=monday(pDate(r.date)),k=localISO(m);let g=groups.find(x=>x.k===k);if(!g){g={k,m,races:[]};groups.push(g)}g.races.push(r)});
+  const gTitle=(g)=>{const w=Math.round((g.m-thisMon)/(7*864e5)),sa=addDays(g.m,5),su=addDays(g.m,6);
+    const rango=sa.getMonth()===su.getMonth()?sa.getDate()+"–"+su.getDate()+" "+MESES[su.getMonth()]:sa.getDate()+" "+MESES[sa.getMonth()]+" – "+su.getDate()+" "+MESES[su.getMonth()];
+    return [w===0?"Este finde":w===1?"Próximo finde":"Finde del "+sa.getDate()+" "+MESES[sa.getMonth()],rango]};
+  const seg=(id,l)=>h("button",{onClick:()=>setView(id),"aria-pressed":view===id,style:{height:36,border:"none",borderRadius:8,cursor:"pointer",fontSize:13,fontWeight:view===id?600:500,background:view===id?t.cd:"transparent",color:view===id?t.tx:t.sb,boxShadow:view===id?"0 1px 2px rgba(0,0,0,0.08)":"none"}},l);
+  return h(React.Fragment,null,
+    h("div",{role:"group","aria-label":"Vista",style:{display:"grid",gridTemplateColumns:"1fr 1fr",background:t.ph,borderRadius:10,padding:3,marginBottom:14}},seg("agenda","Agenda"),seg("calendario","Calendario")),
+    data.new_count>0&&h("div",{style:{display:"flex",alignItems:"center",gap:12,background:t.acS,border:"1px solid "+t.ac+"44",borderRadius:12,padding:"12px 12px 12px 14px",marginBottom:14}},
+      h("span",{style:{width:36,height:36,flex:"0 0 auto",borderRadius:"50%",background:t.ac,color:t.acT,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700}},data.new_count),
+      h("div",{style:{flex:1,minWidth:0}},h("div",{style:{fontSize:14,fontWeight:600,color:t.tx}},data.new_count===1?"Prueba nueva":"Pruebas nuevas"),h("div",{style:{fontSize:12,color:t.sb}},"Marcadas con «Nueva» en la lista")),
+      h("button",{onClick:onSeen,style:{height:34,padding:"0 12px",border:"none",borderRadius:8,background:t.ac,color:t.acT,fontSize:12,fontWeight:600,cursor:"pointer"}},"Vistas")),
+    view==="agenda"&&h("div",{style:{display:"flex",flexDirection:"column",gap:8,marginBottom:14}},
+      h("label",{style:{display:"flex",alignItems:"center",gap:8,height:44,background:t.cd,border:"1px solid "+t.bd,borderRadius:10,padding:"0 12px",color:t.sb}},
+        h(Ic,{n:"search",s:16}),h("input",{value:q,onChange:e=>setQ(e.target.value),placeholder:"Buscar carrera o concello","aria-label":"Buscar carrera o concello",style:{flex:1,border:"none",outline:"none",fontSize:14,background:"transparent",color:t.tx,minWidth:0}})),
+      h("div",{style:{display:"flex",gap:6,flexWrap:"wrap"}},types.map(l=>{const on=flt===l,c=RT[l]||(l==="Apuntadas"?A.bat:null);
+        return h("button",{key:l,onClick:()=>setFlt(l),"aria-pressed":on,style:{height:34,padding:"0 12px",borderRadius:17,fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6,
+          border:"1px solid "+(on?t.tx:t.bd),background:on?t.tx:t.cd,color:on?t.bg:t.sb}},c&&h(Dot,{c}),l==="Apuntadas"?"Apuntadas ("+nSigned+")":l)})),
+      provs.length>1&&h("select",{value:prov,onChange:e=>setProv(e.target.value),"aria-label":"Provincia",style:{alignSelf:"flex-start",height:34,borderRadius:8,border:"1px solid "+t.bd,background:t.cd,color:t.sb,fontSize:12,fontWeight:600,padding:"0 8px"}},
+        h("option",{value:""},"Todas las provincias"),provs.map(p=>h("option",{key:p,value:p},p)))),
+    view==="agenda"?h(React.Fragment,null,
+      groups.length===0&&h("div",{style:{fontSize:13,color:t.sb,background:t.cd,border:"1px dashed "+t.bd,borderRadius:12,padding:20,textAlign:"center"}},items.length?"Ninguna carrera con esos filtros":"No hay carreras próximas en el calendario"),
+      groups.slice(0,nWeeks).map(g=>{const[ti,ra]=gTitle(g);return h("section",{key:g.k,style:{display:"flex",flexDirection:"column",gap:8,marginBottom:16}},
+        h("div",{style:{display:"flex",alignItems:"baseline",justifyContent:"space-between",margin:"0 2px"}},
+          h("h2",{style:{margin:0,fontSize:14,fontWeight:600,color:t.tx}},ti," ",h("span",{style:{fontWeight:500,color:t.sb}},"· "+ra)),
+          h("span",{style:{fontSize:12,color:t.sb}},g.races.length===1?"1 prueba":g.races.length+" pruebas")),
+        g.races.map(r=>h(RaceRow,{key:r.id,r,t,onSign,onOpen})))}),
+      groups.length>nWeeks&&h("button",{onClick:()=>setNWeeks(nWeeks+6),style:{width:"100%",height:44,border:"none",borderRadius:10,background:t.ph,color:t.ac,fontSize:13,fontWeight:600,cursor:"pointer",marginBottom:12}},"Ver más fines de semana"))
+    :h(RaceCalendar,{items:shown,t,onOpen}),
+    h("div",{style:{fontSize:12,color:t.sb,textAlign:"center",marginTop:12,display:"flex",flexDirection:"column",alignItems:"center",gap:8}},
+      h("span",null,"Fuente: carreirasgalegas.com"+(data.fetched_at?" · actualizado "+new Date(data.fetched_at).toLocaleString("es",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"")),
+      data.error&&h("span",{style:{color:t.bR.f}},"Última descarga fallida: "+data.error),
+      h("button",{onClick:onRefresh,disabled:busy,style:chip(t)},busy?h(Spin,null):h(Ic,{n:"sync",s:14}),busy?"Actualizando":"Actualizar carreras")));
+}
+
+// Aviso en Resumen la semana de una carrera apuntada (y si hay pruebas nuevas)
+function RaceWeek({t,data,onOpen,onTab}){
+  if(!data)return null;
+  const items=data.items||[];
+  const r=items.find(x=>x.signed&&daysTo(x.date)>=0&&daysTo(x.date)<=7);
+  const n=daysTo(r?r.date:localISO(new Date())),cierra=r&&r.deadline?daysTo(r.deadline):null;
+  return h(React.Fragment,null,
+    r&&h("div",{onClick:()=>onOpen(r),style:{display:"flex",flexDirection:"column",gap:10,background:t.cd,border:"1px solid "+t.bd,borderLeft:"4px solid "+A.bat,borderRadius:12,padding:"14px 14px 14px 16px",marginBottom:12,cursor:"pointer"}},
+      h("div",{style:{display:"flex",alignItems:"center",gap:8}},
+        h("span",{style:{width:28,height:28,borderRadius:8,background:t.bG.b,color:t.bG.f,display:"flex",alignItems:"center",justifyContent:"center"}},h(Ic,{n:"flag",s:16})),
+        h("span",{style:{fontSize:12,fontWeight:600,color:t.bG.f}},"Semana de carrera · apuntado"),
+        h("span",{style:{marginLeft:"auto",fontSize:12,fontWeight:600,color:t.tx,background:t.ph,borderRadius:6,padding:"2px 8px"}},enDias(n))),
+      h("div",null,h("div",{style:{fontSize:16,fontWeight:600,color:t.tx}},r.name),
+        h("div",{style:{fontSize:13,color:t.sb,marginTop:2}},[DSEM_L[pDate(r.date).getDay()].replace(/^./,c=>c.toUpperCase())+" "+pDate(r.date).getDate(),r.time,r.dist,r.place].filter(Boolean).join(" · "))),
+      cierra!=null&&cierra>=0&&cierra<=3&&h("span",{style:{alignSelf:"flex-start",fontSize:12,color:t.bY.f,background:t.bY.b,borderRadius:6,padding:"3px 8px"}},"La inscripción cierra "+enDias(cierra))),
+    data.new_count>0&&h("div",{onClick:onTab,style:{display:"flex",alignItems:"center",gap:10,background:t.acS,border:"1px solid "+t.ac+"44",borderRadius:12,padding:"10px 12px",marginBottom:12,cursor:"pointer"}},
+      h("span",{style:{width:28,height:28,borderRadius:"50%",background:t.ac,color:t.acT,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700}},data.new_count),
+      h("span",{style:{flex:1,fontSize:13,color:t.tx}},h("strong",{style:{fontWeight:600}},data.new_count===1?"Prueba nueva":"Pruebas nuevas")," en Carreiras Galegas"),
+      h("span",{style:{fontSize:18,color:t.mt}},"›")));
+}
+
 function App(){
   const[dk,setDkRaw]=useState(()=>{
     try{const v=localStorage.getItem("theme");if(v)return v==="dark"}catch(e){}
@@ -718,11 +915,16 @@ function App(){
   const[coachCtx,setCoachCtx]=useState(null);
   const[needLogin,setNeedLogin]=useState(false);
   const[planFocus,setPlanFocus]=useState(null);
+  const[raceCal,setRaceCal]=useState(null);
+  const[racesBusy,setRacesBusy]=useState(false);
+  const[selRaceId,setSelRaceId]=useState(null);
+  const[coachDraft,setCoachDraft]=useState(null);
   const goPlan=(w)=>{setPlanFocus({date:w.date,title:w.title});setTab("coach");window.scrollTo(0,0)};
   // El widget abre la app en #coach; con la app ya abierta llama a __goTab
   useEffect(()=>{
     window.__goTab=(id)=>{setTab(id);window.scrollTo(0,0)};
-    if(location.hash==="#coach")setTab("coach");
+    const hsh=location.hash.slice(1);
+    if(hsh==="coach"||hsh==="carreras")setTab(hsh);
   },[]);
   onNeedLogin=()=>setNeedLogin(true);
   const[flt,setFlt]=useState("Todas");
@@ -741,7 +943,8 @@ function App(){
   const today=localISO(new Date());
   const isToday=!selDate||selDate===today;
 
-  const load=useCallback(()=>{api("dashboard").then(j=>{if(j.has_data)setData(j)}).catch(console.error)},[]);
+  const loadRaces=useCallback(()=>api("races?races=1").then(j=>{if(j&&!j.error||j&&j.items)setRaceCal(j)}).catch(()=>{}),[]);
+  const load=useCallback(()=>{api("dashboard").then(j=>{if(j.has_data)setData(j)}).catch(console.error);loadRaces()},[loadRaces]);
   useEffect(()=>{load()},[load]);
 
   const sync=useCallback(async()=>{
@@ -749,8 +952,22 @@ function App(){
     setMsg("Plan Garmin...");try{await api("plan?refresh=1")}catch(e){}
     setMsg("Strava...");try{await api("sync-strava")}catch(e){}
     setMsg("Calculando...");try{await api("calculate")}catch(e){}
+    setMsg("Carreras...");try{await api("races?races=1&refresh=1")}catch(e){}
     setMsg("Listo ✓");load();setTimeout(()=>{setSyncing(false);setMsg("")},1000);
   },[load]);
+
+  // Carreras: apuntarse (optimista: se pinta ya y se corrige con lo que diga el servidor)
+  const postRaces=(body)=>fetch("/api/races?races=1",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+    .then(r=>{if(r.status===401)onNeedLogin();return r.json()});
+  const signRace=useCallback((r,on)=>{
+    setRaceCal(p=>p&&({...p,items:p.items.map(x=>x.id===r.id?{...x,signed:on}:x)}));
+    postRaces({action:"sign",id:r.id,on,race:raceSnap(r)}).then(j=>{if(j&&j.items)setRaceCal(j);else loadRaces()}).catch(()=>loadRaces());
+  },[loadRaces]);
+  const seenRaces=useCallback(()=>{
+    setRaceCal(p=>p&&({...p,new_count:0,items:p.items.map(x=>({...x,is_new:false}))}));
+    postRaces({action:"seen"}).catch(()=>{});
+  },[]);
+  const refreshRaces=useCallback(async()=>{setRacesBusy(true);try{const j=await api("races?races=1&refresh=1");if(j&&j.items)setRaceCal(j)}catch(e){}setRacesBusy(false)},[]);
 
   // Load historical day
   const loadDay=useCallback(async(date)=>{
@@ -787,8 +1004,13 @@ function App(){
   const an=data.analytics||{};
   const acwr=data.acwr||{};const gts=data.training_status||{};
   const asum=an.summary||{};
-  const tabs=[{id:"resumen",l:"Resumen",i:"home"},{id:"rendimiento",l:"Forma",i:"pulse"},{id:"actividades",l:"Entrenos",i:"cal"},{id:"coach",l:"Coach",i:"chat"}];
-  const tabTitle={resumen:null,rendimiento:"Forma",actividades:"Entrenos",coach:"Coach"}[tab];
+  const tabs=[{id:"resumen",l:"Resumen",i:"home"},{id:"rendimiento",l:"Forma",i:"pulse"},{id:"actividades",l:"Entrenos",i:"cal"},{id:"carreras",l:"Carreras",i:"flag"},{id:"coach",l:"Coach",i:"chat"}];
+  const tabTitle={resumen:null,rendimiento:"Forma",actividades:"Entrenos",carreras:"Carreras",coach:"Coach"}[tab];
+  const selRace=selRaceId&&raceCal?(raceCal.items||[]).find(r=>r.id===selRaceId):null;
+  const askRace=(r)=>{setSelRaceId(null);setCoachCtx(null);
+    setCoachDraft({text:"Estoy apuntado a «"+r.name+"» ("+[r.dist,r.place].filter(Boolean).join(", ")+") el "+DSEM_L[pDate(r.date).getDay()]+" "+pDate(r.date).getDate()+" de "+MESES_L[pDate(r.date).getMonth()]+
+      ". ¿Cómo la preparo desde hoy según mi forma y mi plan, y qué objetivo de tiempo es realista?",n:Date.now()});
+    setTab("coach");window.scrollTo(0,0)};
   const hoyLargo=(s=>s.charAt(0).toUpperCase()+s.slice(1))(new Date().toLocaleDateString("es",{weekday:"long",day:"numeric",month:"long"}));
   const iconBtn={width:44,height:44,border:"1px solid "+t.bd,borderRadius:10,cursor:"pointer",background:t.cd,color:t.tx,display:"flex",alignItems:"center",justifyContent:"center",flex:"0 0 auto"};
   const askCoach=(a)=>{setSel(null);setCoachCtx({id:a.id,name:a.name,sport:a.sport});setTab("coach")};
@@ -812,7 +1034,7 @@ function App(){
           )
         ),
         // Selector de día
-        tab!=="coach"&&h("div",{style:{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}},
+        tab!=="coach"&&tab!=="carreras"&&h("div",{style:{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}},
           h("input",{type:"date","aria-label":"Día",value:selDate||today,max:today,onChange:e=>loadDay(e.target.value),style:{...t.inp,flex:"0 0 auto"}}),
           !isToday&&h("button",{onClick:()=>{setSelDate("");setDayData(null)},style:chip(t,{color:t.ac,background:t.acS,border:"none"})},"← Hoy"),
           !isToday&&h("span",{style:{fontSize:13,fontWeight:600,color:t.tx,textTransform:"capitalize"}},dateLabel),
@@ -823,16 +1045,18 @@ function App(){
 
     // NAVEGACIÓN INFERIOR (las mismas cuatro pestañas, al alcance del pulgar)
     h("nav",{"aria-label":"Secciones",style:{position:"fixed",left:0,right:0,bottom:0,zIndex:20,background:t.hd,borderTop:"1px solid "+t.bd,paddingBottom:"env(safe-area-inset-bottom)"}},
-      h("div",{style:{maxWidth:560,margin:"0 auto",display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",height:64}},
+      h("div",{style:{maxWidth:560,margin:"0 auto",display:"grid",gridTemplateColumns:"repeat(5,minmax(0,1fr))",height:64}},
         tabs.map(x=>{const on=tab===x.id;return h("button",{key:x.id,onClick:()=>{setTab(x.id);window.scrollTo(0,0)},"aria-current":on?"page":undefined,
           style:{border:"none",background:"transparent",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,fontSize:11,fontWeight:on?600:500,color:on?t.ac:t.sb}},
-          h("span",{style:{padding:"3px 16px",borderRadius:12,background:on?t.acS:"transparent",transition:"background .2s"}},h(Ic,{n:x.i,s:22})),x.l)}))),
+          h("span",{style:{position:"relative",padding:"3px 12px",borderRadius:12,background:on?t.acS:"transparent",transition:"background .2s"}},h(Ic,{n:x.i,s:22}),
+            x.id==="carreras"&&raceCal&&raceCal.new_count>0&&h("span",{"aria-label":raceCal.new_count+" pruebas nuevas",style:{position:"absolute",top:-3,right:2,minWidth:16,height:16,padding:"0 4px",borderRadius:8,background:t.ac,color:t.acT,fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}},raceCal.new_count)),x.l)}))),
 
     // MAIN
     h("main",{style:{maxWidth:560,margin:"0 auto",padding:"16px 16px calc(96px + env(safe-area-inset-bottom))"}},
 
       // === RESUMEN ===
       tab==="resumen"&&h(React.Fragment,null,
+        isToday&&h(RaceWeek,{t,data:raceCal,onOpen:r=>setSelRaceId(r.id),onTab:()=>{setTab("carreras");window.scrollTo(0,0)}}),
         isToday&&h(Hoy,{t,rd,sl,hrv,workouts:data.scheduled_workouts,onPlan:goPlan}),
         // Indicadores: cada uno con su anillo de color
         h("div",{style:{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:8,marginBottom:16}},
@@ -1005,9 +1229,13 @@ function App(){
       ),
 
       // === COACH ===
-      tab==="coach"&&h(Coach,{t,ctx:coachCtx,onClearCtx:()=>setCoachCtx(null),plan:data.scheduled_workouts,planAt:data.meta?.plan_synced,focus:planFocus})
+      // === CARRERAS ===
+      tab==="carreras"&&h(Carreras,{t,data:raceCal,onSign:signRace,onSeen:seenRaces,onOpen:r=>setSelRaceId(r.id),onRefresh:refreshRaces,busy:racesBusy}),
+
+      tab==="coach"&&h(Coach,{t,ctx:coachCtx,onClearCtx:()=>setCoachCtx(null),plan:data.scheduled_workouts,planAt:data.meta?.plan_synced,focus:planFocus,draft:coachDraft})
     ),
     sel&&h(Detail,{a:sel,onClose:()=>setSel(null),t,onAsk:askCoach}),
+    selRace&&h(RaceSheet,{r:selRace,t,onClose:()=>setSelRaceId(null),onSign:signRace,onAsk:askRace,preds:data.race_predictions}),
     h("div",{style:{textAlign:"center",padding:"0 0 calc(80px + env(safe-area-inset-bottom))",marginTop:-72,fontSize:11,color:t.sb}},"Garmin + Strava · "+(data.profile?.name||"Mi Salud"))
   );
 }

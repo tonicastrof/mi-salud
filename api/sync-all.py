@@ -15,7 +15,7 @@ el cron llega sin credenciales: se le deja pasar, pero como mucho una vez cada
 30 minutos (ver _throttled).
 
 `?steps=garmin,strava` limita qué pasos corren (garmin, plan, strava,
-calculate). Todos juntos caben de sobra en los 60s del plan Hobby, pero si
+calculate, races). Todos juntos caben de sobra en los 60s del plan Hobby, pero si
 algún día no cupieran se puede partir en varios crons (`?steps=garmin,plan` y
 luego `?steps=strava,calculate`) sin tocar código.
 """
@@ -34,6 +34,7 @@ from _lib.metrics import calculate_all
 from _lib.archive import archive_day
 from _lib.tz import ahora
 from _lib.auth import authorized
+from _lib import races
 
 
 MIN_GAP = timedelta(minutes=30)
@@ -119,8 +120,17 @@ def _calculate(meta):
             "archived_days": archived}
 
 
+def _sync_races(meta):
+    # Carreiras Galegas: si no está configurado no es un error, simplemente no hay carreras
+    if not races.configured():
+        return {"skipped": "sin CARREIRAS_SEARCH_KEY"}
+    out = races.refresh()
+    meta["races_synced"] = ahora().isoformat()
+    return out
+
+
 STEPS = (("garmin", _sync_garmin), ("plan", _sync_plan), ("strava", _sync_strava),
-         ("calculate", _calculate))
+         ("calculate", _calculate), ("races", _sync_races))
 
 
 class handler(BaseHTTPRequestHandler):
