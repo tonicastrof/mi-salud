@@ -118,6 +118,10 @@
       "dest": "/api/plan.py"
     },
     {
+      "src": "/api/races(.*)",
+      "dest": "/api/plan.py"
+    },
+    {
       "src": "/(.*)",
       "dest": "/public/$1"
     }

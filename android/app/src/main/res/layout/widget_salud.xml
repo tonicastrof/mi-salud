@@ -1,76 +1,168 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Mismo orden que la tarjeta «Hoy» de la app: Readiness, la carrera de la
+     semana (si estás apuntado a una), el entreno que toca, tres métricas y los
+     pasos. Los colores salen de values/ y values-night/: sigue el tema del móvil. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@drawable/widget_bg"
-    android:padding="14dp">
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="12dp"
+    android:paddingBottom="12dp">
 
-    <!-- Cabecera -->
+    <!-- Readiness + actualizar -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical">
 
-        <TextView
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="@string/app_name"
-            android:textColor="#F1F5F9"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.08"
-            android:maxLines="1" />
+            android:orientation="vertical">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/widget_readiness"
+                android:textColor="@color/w_sub"
+                android:textSize="11sp" />
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+                <TextView
+                    android:id="@+id/widget_readiness"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/w_bat"
+                    android:textSize="28sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:includeFontPadding="false"
+                    android:maxLines="1" />
+                <TextView
+                    android:id="@+id/widget_readiness_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:textColor="@color/w_bat"
+                    android:textSize="12sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:maxLines="1" />
+            </LinearLayout>
+        </LinearLayout>
 
         <TextView
             android:id="@+id/widget_updated"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="#64748B"
+            android:layout_marginEnd="8dp"
+            android:textColor="@color/w_sub"
             android:textSize="11sp"
             android:maxLines="1" />
 
-        <TextView
+        <ImageView
             android:id="@+id/widget_refresh"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="@drawable/widget_refresh_bg"
+            android:padding="9dp"
+            android:src="@drawable/ic_refresh"
+            android:contentDescription="@string/widget_refresh" />
+    </LinearLayout>
+
+    <!-- Carrera de esta semana (solo si estás apuntado a una) -->
+    <LinearLayout
+        android:id="@+id/widget_race_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/widget_race_strip"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:visibility="gone">
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:src="@drawable/ic_flag"
+            android:contentDescription="@null" />
+        <TextView
+            android:id="@+id/widget_race_when"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingStart="10dp"
-            android:paddingEnd="2dp"
-            android:paddingTop="2dp"
-            android:paddingBottom="2dp"
-            android:text="⟳"
-            android:textColor="#94A3B8"
+            android:layout_marginStart="8dp"
+            android:textColor="@color/w_race_fg"
+            android:textSize="12sp"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1" />
+        <TextView
+            android:id="@+id/widget_race"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:textColor="@color/w_text"
+            android:textSize="12sp"
+            android:maxLines="1"
+            android:ellipsize="end" />
+    </LinearLayout>
+
+    <!-- Entreno de hoy (o el próximo) de Garmin Coach -->
+    <LinearLayout
+        android:id="@+id/widget_workout_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:background="@drawable/widget_strip"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingEnd="10dp"
+        android:visibility="gone">
+        <ImageView
+            android:id="@+id/widget_workout_bar"
+            android:layout_width="3dp"
+            android:layout_height="28dp"
+            android:contentDescription="@null" />
+        <TextView
+            android:id="@+id/widget_workout_kind"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="9dp"
+            android:textSize="12sp"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1" />
+        <TextView
+            android:id="@+id/widget_workout"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:textColor="@color/w_text"
+            android:textSize="12sp"
+            android:maxLines="1"
+            android:ellipsize="end" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="›"
+            android:textColor="@color/w_sub"
             android:textSize="15sp" />
     </LinearLayout>
 
-    <!-- Pasos -->
-    <TextView
-        android:id="@+id/widget_steps"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:textColor="#F1F5F9"
-        android:textSize="13sp"
-        android:textStyle="bold"
-        android:maxLines="1" />
-
-    <ProgressBar
-        android:id="@+id/widget_steps_bar"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="match_parent"
-        android:layout_height="7dp"
-        android:layout_marginTop="5dp"
-        android:max="100"
-        android:progressDrawable="@drawable/widget_progress" />
-
-    <!-- Métricas -->
+    <!-- Métricas, cada una con su punto de color -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="11dp"
+        android:layout_marginTop="8dp"
         android:orientation="horizontal"
         android:baselineAligned="false">
 
@@ -80,19 +172,19 @@
             android:layout_weight="1"
             android:orientation="vertical">
             <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/widget_battery_label"
+                android:textColor="@color/w_sub"
+                android:textSize="11sp" />
+            <TextView
                 android:id="@+id/widget_battery"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#10B981"
-                android:textSize="17sp"
-                android:textStyle="bold"
+                android:textColor="@color/w_text"
+                android:textSize="16sp"
+                android:fontFamily="sans-serif-medium"
                 android:maxLines="1" />
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/widget_battery"
-                android:textColor="#64748B"
-                android:textSize="10sp" />
         </LinearLayout>
 
         <LinearLayout
@@ -100,20 +192,20 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:orientation="vertical">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/widget_hr_label"
+                android:textColor="@color/w_sub"
+                android:textSize="11sp" />
             <TextView
                 android:id="@+id/widget_hr"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#EF4444"
-                android:textSize="17sp"
-                android:textStyle="bold"
+                android:textColor="@color/w_text"
+                android:textSize="16sp"
+                android:fontFamily="sans-serif-medium"
                 android:maxLines="1" />
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/widget_hr"
-                android:textColor="#64748B"
-                android:textSize="10sp" />
         </LinearLayout>
 
         <LinearLayout
@@ -121,83 +213,54 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:orientation="vertical">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/widget_sleep_label"
+                android:textColor="@color/w_sub"
+                android:textSize="11sp" />
             <TextView
                 android:id="@+id/widget_sleep"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#A78BFA"
-                android:textSize="17sp"
-                android:textStyle="bold"
+                android:textColor="@color/w_text"
+                android:textSize="16sp"
+                android:fontFamily="sans-serif-medium"
                 android:maxLines="1" />
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/widget_sleep"
-                android:textColor="#64748B"
-                android:textSize="10sp" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-            <TextView
-                android:id="@+id/widget_readiness"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="#06B6D4"
-                android:textSize="17sp"
-                android:textStyle="bold"
-                android:maxLines="1" />
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/widget_readiness"
-                android:textColor="#64748B"
-                android:textSize="10sp" />
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Entreno de hoy (o el próximo) de Garmin Coach -->
+    <!-- Pasos y forma -->
     <LinearLayout
-        android:id="@+id/widget_workout_row"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:visibility="gone">
-
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal">
         <TextView
-            android:id="@+id/widget_workout_kind"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textColor="#94A3B8"
-            android:textSize="12sp"
-            android:textStyle="bold"
-            android:maxLines="1" />
-
-        <TextView
-            android:id="@+id/widget_workout"
+            android:id="@+id/widget_steps"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="6dp"
-            android:textColor="#F1F5F9"
-            android:textSize="12sp"
+            android:textColor="@color/w_sub"
+            android:textSize="11sp"
             android:maxLines="1"
             android:ellipsize="end" />
+        <TextView
+            android:id="@+id/widget_form"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:textColor="@color/w_sub"
+            android:textSize="11sp"
+            android:maxLines="1" />
     </LinearLayout>
 
-    <!-- Pie: forma del día -->
-    <TextView
-        android:id="@+id/widget_form"
+    <ProgressBar
+        android:id="@+id/widget_steps_bar"
+        style="?android:attr/progressBarStyleHorizontal"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:textColor="#94A3B8"
-        android:textSize="11sp"
-        android:maxLines="1"
-        android:ellipsize="end" />
+        android:layout_height="5dp"
+        android:layout_marginTop="4dp"
+        android:max="100"
+        android:progressDrawable="@drawable/widget_progress" />
 </LinearLayout>

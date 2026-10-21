@@ -12,6 +12,7 @@ mi-salud-final/
 │   │   ├── analytics.py      ← Volumen semanal, calendario, récords, tendencias
 │   │   ├── coach_context.py  ← Dossier del atleta para el entrenador IA
 │   │   ├── archive.py        ← Ficha diaria: guarda el día en el histórico
+│   │   ├── races.py          ← Carreras de Carreiras Galegas, apuntados y novedades
 │   │   └── cache.py          ← Upstash Redis
 │   ├── sync-garmin.py        ← Endpoint: descargar datos Garmin
 │   ├── sync-strava.py        ← Endpoint: descargar datos Strava
@@ -23,7 +24,8 @@ mi-salud-final/
 │   ├── activity.py           ← Endpoint: detalle + streams de una actividad
 │   ├── day.py                ← Endpoint: datos de Garmin de un día concreto
 │   ├── plan.py               ← Endpoint: próximos entrenos de Garmin Coach / calendario
-│   │                           (también sirve /api/compliance: pedido vs. hecho)
+│   │                           (también sirve /api/compliance: pedido vs. hecho,
+│   │                           y /api/races: carreras de Carreiras Galegas)
 │   ├── login.py              ← Endpoint: inicio de sesión de la app (cookie)
 │   └── coach.py              ← Endpoint: entrenador IA (Claude)
 ├── public/index.html         ← La app (React sin compilar, se sirve tal cual)
@@ -388,3 +390,25 @@ cd android
 ./gradlew assembleRelease -PappUrl=https://mi-salud-nine.vercel.app
 # app/build/outputs/apk/release/app-release.apk
 ```
+
+## Carreras (Carreiras Galegas)
+
+La pestaña **Carreras** enseña el calendario de carreirasgalegas.com por fines
+de semana o como calendario mensual. Marcas con el check las que te apuntas:
+la semana de la carrera sale un aviso en Resumen y en el widget, y el
+entrenador las tiene en cuenta. Las pruebas que aparecen entre una descarga y
+la siguiente salen como «Nueva» y la app de Android avisa con una notificación.
+
+Se descargan una vez al día (paso `races` del cron `sync-all`) o con
+Sincronizar. La fuente se configura en Vercel → Settings → Environment Variables:
+
+| Variable | Qué es |
+|---|---|
+| `CARREIRAS_SEARCH_KEY` | Clave de búsqueda del buscador de carreirasgalegas.com (obligatoria) |
+| `CARREIRAS_SEARCH_INDEX` | Índice del buscador (por defecto `competitions`) |
+| `CARREIRAS_SEARCH_HOST` | Por defecto `https://search.carreirasgalegas.com` |
+| `CARREIRAS_SEARCH_FILTER` | Filtro opcional del buscador |
+
+Sin `CARREIRAS_SEARCH_KEY` la pestaña explica que falta configurarla.
+`GET /api/races` devuelve también `sample_keys` (los campos que trae cada
+carrera) para ajustar `api/_lib/races.py` si cambian.

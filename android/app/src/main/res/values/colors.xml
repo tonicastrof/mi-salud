@@ -2,4 +2,17 @@
 <resources>
     <color name="app_bg">#FFFFFF</color>
     <color name="ic_launcher_background">#0A0A0F</color>
+
+    <!-- Widget, tema claro (el oscuro está en values-night) -->
+    <color name="w_bg">#FFFFFF</color>
+    <color name="w_text">#16181D</color>
+    <color name="w_sub">#5B6270</color>
+    <color name="w_strip">#F1F2F5</color>
+    <color name="w_track">#EEF0F3</color>
+    <color name="w_steps">#3B82F6</color>
+    <color name="w_race_bg">#E3F6EE</color>
+    <color name="w_race_fg">#047857</color>
+    <color name="w_bat">#10B981</color>
+    <color name="w_hr">#EF4444</color>
+    <color name="w_sleep">#7C5CFC</color>
 </resources>

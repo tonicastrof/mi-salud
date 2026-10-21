@@ -3,9 +3,12 @@ GET /api/plan            → próximos entrenos programados (lo guardado en Redi
 GET /api/plan?refresh=1  → los vuelve a descargar del calendario de Garmin
 GET /api/compliance?date=2026-10-05&title=Base
                          → ese entreno, pedido frente a hecho (_lib/compliance.py)
+GET  /api/races          → carreras de Carreiras Galegas (?refresh=1 las vuelve a bajar)
+POST /api/races          → {"action":"sign","id":...,"on":true} marca/desmarca apuntado,
+                           {"action":"seen"} da por vistas las pruebas nuevas
 
-/api/compliance se sirve desde aquí (ver vercel.json) porque el plan Hobby de
-Vercel admite como mucho 12 funciones por despliegue.
+/api/compliance y /api/races se sirven desde aquí (ver vercel.json) porque el
+plan Hobby de Vercel admite como mucho 12 funciones por despliegue.
 
 Son los entrenos de Garmin Coach y los que programes a mano en Garmin
 Connect, con sus pasos (calentamiento, series, ritmos, zonas).
@@ -27,6 +30,7 @@ from _lib.auth import authorized, deny
 from _lib.workouts import mark_done
 from _lib.compliance import compare, cache_key, align, flatten
 from _lib.strava_client import StravaClient
+from _lib import races
 
 
 def refresh_plan(meta=None):
@@ -60,7 +64,9 @@ class handler(BaseHTTPRequestHandler):
             return deny(self)
         q = parse_qs(urlparse(self.path).query)
         # Según cómo reescriba Vercel la ruta, self.path puede ser la original
-        # o la de plan.py: «date» solo lo usa la valoración
+        # o la de plan.py: «date» solo lo usa la valoración y «races» las carreras
+        if self.path.startswith("/api/races") or q.get("races"):
+            return self._races_get(q)
         if self.path.startswith("/api/compliance") or q.get("date"):
             return self._compliance(q)
         try:
@@ -118,6 +124,41 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             self._r(500, {"error": str(e)})
 
+
+    def _races_get(self, q):
+        try:
+            if q.get("refresh"):
+                try:
+                    races.refresh()
+                except Exception as e:
+                    data = load(races.KEY_RACES) or {}
+                    data["error"] = str(e)
+                    save(races.KEY_RACES, data)
+            self._r(200, races.payload())
+        except Exception as e:
+            self._r(500, {"error": str(e)})
+
+    def do_POST(self):
+        if not authorized(self.headers):
+            return deny(self)
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+            body = json.loads(self.rfile.read(n) or b"{}")
+        except ValueError:
+            return self._r(400, {"error": "JSON no válido"})
+        try:
+            action = body.get("action")
+            if action == "sign":
+                races.set_signed(str(body.get("id") or ""), bool(body.get("on")), body.get("race"))
+            elif action == "seen":
+                races.mark_seen()
+            else:
+                return self._r(400, {"error": "Acción desconocida"})
+            self._r(200, races.payload())
+        except KeyError as e:
+            self._r(404, {"error": str(e).strip("'")})
+        except Exception as e:
+            self._r(500, {"error": str(e)})
 
     def _r(self, code, payload):
         body = json.dumps(payload, default=str).encode()

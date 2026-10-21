@@ -72,6 +72,8 @@ public class MainActivity extends Activity {
         setContentView(root);
         applyInsets();
         applyBarAppearance(bgColor);
+        RaceCheckJob.schedule(this);
+        askNotificationPermission();
 
         String tab = getIntent().getStringExtra(EXTRA_TAB);
         if (savedInstanceState != null && tab == null) {
@@ -79,6 +81,20 @@ public class MainActivity extends Activity {
         } else {
             web.loadUrl(tab != null ? baseUrl + "/#" + tab : baseUrl);
         }
+    }
+
+    /** Android 13+: pide permiso de notificaciones una vez (para el aviso de pruebas nuevas). */
+    private void askNotificationPermission() {
+        if (Build.VERSION.SDK_INT < 33
+                || checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        SharedPreferences prefs = Config.prefs(this);
+        if (prefs.getBoolean(Config.KEY_NOTIF_ASKED, false)) {
+            return;
+        }
+        prefs.edit().putBoolean(Config.KEY_NOTIF_ASKED, true).apply();
+        requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 7);
     }
 
     /** Con la app ya abierta (singleTop), el widget llega por aquí: cambia de pestaña sin recargar. */

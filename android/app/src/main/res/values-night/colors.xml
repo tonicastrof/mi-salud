@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Widget, tema oscuro: los mismos colores que la app en modo oscuro -->
+    <color name="w_bg">#171A1F</color>
+    <color name="w_text">#E8EAED</color>
+    <color name="w_sub">#9BA3AF</color>
+    <color name="w_strip">#262A31</color>
+    <color name="w_track">#262A31</color>
+    <color name="w_steps">#60A5FA</color>
+    <color name="w_race_bg">#12352A</color>
+    <color name="w_race_fg">#6EE7B7</color>
+    <color name="w_bat">#34D399</color>
+    <color name="w_hr">#F87171</color>
+    <color name="w_sleep">#A78BFA</color>
+</resources>

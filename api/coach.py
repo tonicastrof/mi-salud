@@ -243,6 +243,13 @@ class handler(BaseHTTPRequestHandler):
             mark_done((load("garmin_plan") or {}).get("workouts"), activities), load))
         if plan:
             context += "\n" + plan
+        try:
+            from _lib.races import coach_block
+            carreras = coach_block()
+            if carreras:
+                context += "\n" + carreras
+        except Exception:
+            pass  # sin Redis de carreras el dossier sigue valiendo
 
         if activity_id:
             detail = self._activity_detail(activity_id, activities)
