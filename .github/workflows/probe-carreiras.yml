@@ -11,26 +11,23 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Rutas de la API
+      - name: Rutas en los chunks y prueba
         run: |
           UA="Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/126 Mobile Safari/537.36"
           B=https://www.carreirasgalegas.com
           curl -sSL -A "$UA" $B/main.b2bac07fc93cf91b.js -o main.js
-          curl -sSL -A "$UA" $B/runtime.cd7b82f05d3877af.js -o runtime.js
+          for c in 86.c73a1343d2b32a07 105.878545028b252888 175.17c0413e1d72b17d 194.cd9e0febb669977e 231.860e5245dd8452a6 232.ace51125ea113737 277.f815e9b295b7b6d9 402.51fc5dff33c0f55e 466.82df258d1634c466 527.3f82005c0950152e 611.8dcfb65e2502cfc8 703.f32a32cb6f3d5c14 865.c75a5708f9ed8dc2 927.7c3d07697b236062 940.f6abec2c32c948d2; do
+            curl -sSL -A "$UA" "$B/$c.js" -o "chunk-$c.js"; done
           python3 - <<'PY'
-          import re,subprocess
-          s=open('main.js',encoding='utf-8',errors='replace').read()
-          for u in ['https://api.web.carreirasgalegas.com','https://search.carreirasgalegas.com','https://api.tp.carreirasgalegas.com','https://races.blob.core.windows.net']:
-              for m in list(re.finditer(re.escape(u),s))[:3]:
-                  print('CTX',u,'::',s[max(0,m.start()-300):m.start()+200])
-          # claves del objeto environment
-          keys=set(re.findall(r'([A-Za-z_$][\w$]*):"https://(?:api\.web|search|api\.tp|ranking\.api)\.carreirasgalegas\.com',s))
-          print('KEYS',keys)
-          for k in keys:
-              hits=[m.start() for m in re.finditer(r'\.'+re.escape(k)+r'\b',s)]
-              print('==',k,len(hits))
-              for h in hits[:60]:
-                  print('  ',s[h-40:h+160].replace('\n',' '))
-          r=open('runtime.js',encoding='utf-8',errors='replace').read()
-          print('RUNTIME',r[:3000])
+          import re,glob
+          for f in ['main.js']+sorted(glob.glob('chunk-*.js')):
+              s=open(f,encoding='utf-8',errors='replace').read()
+              paths=sorted(set(re.findall(r'\$\{[\w$.]+\.api\}(/[^`"\']{0,80})',s)))
+              ms=[s[m.start()-150:m.start()+250] for m in re.finditer(r'meilisearch|\.index\(|indexUid|multiSearch',s)][:4]
+              ev=[s[m.start()-200:m.start()+300] for m in re.finditer(r'getEvents|EventsComponent|eventDate|startDate|province',s)][:3]
+              if paths or ms or ev:
+                  print('#####',f,len(s))
+                  for p in paths: print('  PATH',p)
+                  for x in ms: print('  MS ::',x.replace('\n',' '))
+                  for x in ev: print('  EV ::',x.replace('\n',' '))
           PY
