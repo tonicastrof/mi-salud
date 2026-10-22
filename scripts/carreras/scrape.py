@@ -83,11 +83,16 @@ def hora_y_salida(txt):
     toma de la primera línea que hable de salida o comienzo (nunca de las
     de inscripción, que traen «ata as 23:59»)."""
     hora, lugar = None, None
-    for line in txt.splitlines():
+    lines = txt.splitlines()
+    for i, line in enumerate(lines):
         if re.search(r"inscri|ata as|hasta las|prazo|plazo", line, re.I):
             continue
         if hora is None and CLAVE_HORA.search(line):
-            m = HORA.search(line.split("/20")[-1] if re.search(r"\d{1,2}/\d{1,2}/20\d\d", line) else line)
+            txt_h = line.split("/20")[-1] if re.search(r"\d{1,2}/\d{1,2}/20\d\d", line) else line
+            # Ficha en formato «Saída» / «11:00»: la hora va en la línea siguiente
+            if not HORA.search(txt_h) and len(line) < 40 and i + 1 < len(lines):
+                txt_h = lines[i + 1]
+            m = HORA.search(txt_h)
             if m and (m.group(1), m.group(2)) != ("0", "00"):
                 hora = f"{int(m.group(1)):02d}:{m.group(2)}"
         if lugar is None:
