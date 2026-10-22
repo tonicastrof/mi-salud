@@ -131,5 +131,10 @@
       "path": "/api/sync-all",
       "schedule": "10 5 * * *"
     }
-  ]
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "datos": false
+    }
+  }
 }

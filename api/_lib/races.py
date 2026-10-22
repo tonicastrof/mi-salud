@@ -1,22 +1,15 @@
-"""Carreras populares de Galicia (calendario de Carreiras Galegas, FGA).
+"""Carreras populares (Carreiras Galegas y CCNorte).
 
-La web oficial es una app Angular: el listado no viene en el HTML, lo pide a
-un buscador Meilisearch con una clave de solo búsqueda que publica en su
-propio JavaScript. Aquí se hace la misma consulta una vez al día desde el
-servidor. La clave y el índice NO están en el código: se configuran en
-Vercel (decisión del dueño de la app):
+Las dos webs se leen con los scrapers de scripts/carreras/scrape.py, que
+corren cada día en GitHub Actions (.github/workflows/carreras.yml) y publican
+un carreras.json en la rama `datos` del repo. Aquí se descarga ese JSON, se
+normalizan las carreras, se juntan las que salen en las dos webs y se
+detectan las pruebas nuevas. Así el servidor no necesita navegador ni claves.
 
-  CARREIRAS_SEARCH_KEY    clave de búsqueda (obligatoria; sin ella, no hay carreras)
-  CARREIRAS_SEARCH_INDEX  índice (por defecto "competitions")
-  CARREIRAS_SEARCH_HOST   por defecto https://search.carreirasgalegas.com
-  CARREIRAS_SEARCH_FILTER filtro Meilisearch opcional (p. ej. para solo futuras)
-
-Los nombres de los campos de cada carrera no están documentados, así que
-`normalize` prueba los nombres habituales y guarda en Redis qué claves trae
-el primer resultado (`sample_keys`) para poder afinarlo.
+  CARRERAS_DATA_URL  de dónde leer el JSON (por defecto, la rama `datos`)
 
 Redis:
-  races          {"items": [...], "fetched_at", "error", "sample_keys"}
+  races          {"items": [...], "fetched_at", "scraped_at", "sources", "error"}
   races_signed   {id: copia de la carrera}  las que marcaste como apuntado
   races_seen     {"ids": [...], "new": [...], "new_key": "..."}  para avisar
                  de las pruebas que aparecen entre una descarga y la siguiente
@@ -24,88 +17,57 @@ Redis:
 import json
 import os
 import re
+import unicodedata
 import urllib.request
-from datetime import date, datetime, timedelta, timezone
+from datetime import date
 
 from _lib.cache import load, save
-from _lib.tz import ahora, hoy, MADRID
+from _lib.tz import ahora, hoy
 
 KEY_RACES = "races"
 KEY_SIGNED = "races_signed"
 KEY_SEEN = "races_seen"
 MAX_SEEN = 4000
+DATA_URL = "https://raw.githubusercontent.com/tonicastrof/mi-salud/datos/carreras.json"
+FUENTES = {"carreirasgalegas": "Carreiras Galegas", "ccnorte": "CCNorte"}
 
-TIPOS = ("Ruta", "Trail", "Cross", "Pista", "Infantil")
 DIAS = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"]
+# Palabras que van en minúscula al pasar los nombres (vienen EN MAYÚSCULAS)
+MENORES = {"de", "do", "da", "dos", "das", "del", "la", "las", "los", "el", "e", "y", "o", "a",
+           "en", "contra", "pola", "polo", "por", "con", "ao", "á", "ó", "no", "na", "nos", "nas"}
 
 
 def configured():
-    return bool(os.getenv("CARREIRAS_SEARCH_KEY"))
+    return True
 
 
 # ─── Descarga ───
 
-def _search(offset=0, limit=1000):
-    host = (os.getenv("CARREIRAS_SEARCH_HOST") or "https://search.carreirasgalegas.com").rstrip("/")
-    index = os.getenv("CARREIRAS_SEARCH_INDEX") or "competitions"
-    body = {"q": "", "limit": limit, "offset": offset}
-    if os.getenv("CARREIRAS_SEARCH_FILTER"):
-        body["filter"] = os.getenv("CARREIRAS_SEARCH_FILTER")
-    req = urllib.request.Request(
-        f"{host}/indexes/{index}/search", data=json.dumps(body).encode(), method="POST",
-        headers={"Authorization": "Bearer " + os.environ["CARREIRAS_SEARCH_KEY"],
-                 "Content-Type": "application/json", "User-Agent": "MiSalud/1.0"})
+def fetch_data():
+    url = os.getenv("CARRERAS_DATA_URL") or DATA_URL
+    req = urllib.request.Request(url, headers={"User-Agent": "MiSalud/1.0", "Cache-Control": "no-cache"})
     with urllib.request.urlopen(req, timeout=20) as r:
-        return json.loads(r.read().decode())
-
-
-def fetch_raw():
-    hits, offset = [], 0
-    while offset < 3000:
-        page = _search(offset)
-        got = page.get("hits") or []
-        hits.extend(got)
-        if len(got) < 1000:
-            break
-        offset += 1000
-    return hits
+        return json.loads(r.read().decode("utf-8"))
 
 
 # ─── Normalizar ───
 
-def _first(d, *keys):
-    """Primer valor no vacío entre varias claves; admite rutas «a.b»."""
-    for k in keys:
-        v = d
-        for part in k.split("."):
-            v = v.get(part) if isinstance(v, dict) else None
-        if v not in (None, "", [], {}):
-            return v
-    return None
-
-
-def _when(v):
-    """Fecha (y hora si la trae) desde ISO, epoch (s o ms) o {seconds} de Firestore."""
-    if v is None:
-        return None, None
-    if isinstance(v, dict):
-        v = v.get("seconds") or v.get("_seconds") or v.get("date")
-    try:
-        if isinstance(v, (int, float)) or (isinstance(v, str) and v.isdigit()):
-            n = float(v)
-            dt = datetime.fromtimestamp(n / 1000 if n > 1e11 else n, tz=timezone.utc).astimezone(MADRID)
+def bonito(nombre):
+    """«XII CARREIRA POPULAR CONCELLO DE RIANXO» → «XII Carreira Popular Concello de Rianxo».
+    Respeta números romanos, siglas cortas y lo que ya venga en minúsculas."""
+    s = re.sub(r"\s+", " ", (nombre or "").strip())
+    if not s or s != s.upper():
+        return s
+    out = []
+    for i, w in enumerate(s.split(" ")):
+        core = re.sub(r"[^\wÁÉÍÓÚÑÜ]", "", w, flags=re.U)
+        if re.fullmatch(r"[IVXLCDM]+[ªº]?", core) or re.fullmatch(r"\d+\w*", core) or (core.isalpha() and len(core) <= 3 and core.lower() not in MENORES and not core.lower() in ("cto", "san", "sin")):
+            out.append(w)
+        elif i and core.lower() in MENORES and out[-1] not in ("-", "–", "—"):
+            out.append(w.lower())
         else:
-            s = str(v).strip().replace("Z", "+00:00")
-            m = re.match(r"^(\d{1,2})[/-](\d{1,2})[/-](\d{4})", s)
-            if m:
-                return date(int(m.group(3)), int(m.group(2)), int(m.group(1))), None
-            dt = datetime.fromisoformat(s[:25] if "T" in s else s[:10])
-            if dt.tzinfo:
-                dt = dt.astimezone(MADRID)
-        t = dt.strftime("%H:%M") if (dt.hour, dt.minute) != (0, 0) else None
-        return dt.date(), t
-    except (ValueError, TypeError, OSError, OverflowError):
-        return None, None
+            out.append(w[:1].upper() + w[1:].lower() if w[:1].isalpha() else w[:2].upper() + w[2:].lower())
+    return " ".join(out)
 
 
 def _km_label(km):
@@ -114,85 +76,111 @@ def _km_label(km):
         return "Maratón"
     if abs(km - 21.0975) < 0.3:
         return "Media"
+    if abs(km - 1.609) < 0.05:
+        return "Milla"
     return (f"{km:.1f}".rstrip("0").rstrip(".").replace(".", ",")) + "K"
 
 
-def _distances(h, name):
-    """Lista de km a partir de los campos de distancia o, si no hay, del nombre."""
+def km_del_nombre(name):
+    low = (name or "").lower()
     kms = []
-    raw = _first(h, "distances", "distance", "distanceKm", "km", "races", "categories", "events")
-    items = raw if isinstance(raw, list) else [raw] if raw is not None else []
-    for it in items:
-        if isinstance(it, dict):
-            it = _first(it, "distance", "distanceKm", "km", "length", "meters", "name")
-        if isinstance(it, (int, float)):
-            kms.append(it / 1000 if it > 300 else it)
-        elif isinstance(it, str):
-            for num, unit in re.findall(r"(\d+(?:[.,]\d+)?)\s*(km|k|m)\b", it.lower()):
-                n = float(num.replace(",", "."))
-                kms.append(n / 1000 if unit == "m" and n > 50 else n)
-    if not kms:
-        low = (name or "").lower()
-        if "media marat" in low or "medio marat" in low:
-            kms.append(21.0975)
-        elif "maratón" in low or "maraton" in low:
-            kms.append(42.195)
-        for num in re.findall(r"(\d+(?:[.,]\d+)?)\s*k(?:m)?\b", low):
-            kms.append(float(num.replace(",", ".")))
-    out = sorted({round(k, 3) for k in kms if 0.1 <= k <= 200}, reverse=True)
-    return out[:4]
+    if re.search(r"medi[oa] marat", low):
+        kms.append(21.0975)
+    elif re.search(r"\bmarat[oó]n\b", low):
+        kms.append(42.195)
+    if re.search(r"\bmilla\b", low):
+        kms.append(1.609)
+    for num in re.findall(r"(\d+(?:[.,]\d+)?)\s*k(?:m|ms)?\b", low):
+        kms.append(float(num.replace(",", ".")))
+    return kms
 
 
-def _tipo(h, name):
-    txt = " ".join(str(x) for x in [
-        _first(h, "type", "modality", "discipline", "category", "sport", "competitionType"),
-        name] if x).lower()
-    if re.search(r"trail|monta[ñn]a|montaña|monte|serra|skyrace|ultra", txt):
+def tipo(name):
+    low = (name or "").lower()
+    if re.search(r"trail|monta[ñn]a|skyrace|ultra\b", low):
         return "Trail"
-    if re.search(r"\bcross\b|campo a trav", txt):
+    if re.search(r"\bcros+\b|campo a trav", low):
         return "Cross"
-    if re.search(r"pista|stadium|estadio", txt):
+    if re.search(r"\bpista\b|\bmilla\b", low):
         return "Pista"
-    if re.search(r"escolar|infantil|menores|benxam|alev[ií]n|cativ", txt):
+    if re.search(r"andaina|sendeirismo|camiñada", low) and not re.search(r"carreira|carrera", low):
+        return "Andaina"
+    if re.search(r"escolar|infantil|menores|benxam|alev[ií]n|cativ", low):
         return "Infantil"
     return "Ruta"
 
 
-def normalize(h):
-    name = _first(h, "name", "title", "nombre", "nome", "competitionName")
-    d, t = _when(_first(h, "date", "startDate", "eventDate", "competitionDate", "start",
-                        "dateStart", "fecha", "data", "day"))
-    if not name or not d:
+def normalize(it):
+    """Una carrera del JSON del scraper → la forma que usa la app."""
+    name, d = it.get("name"), it.get("date")
+    try:
+        date.fromisoformat(d or "")
+    except ValueError:
         return None
-    t = t or _first(h, "time", "hour", "startTime", "hora")
-    if isinstance(t, str):
-        m = re.search(r"(\d{1,2})[:.h](\d{2})", t)
-        t = f"{int(m.group(1)):02d}:{m.group(2)}" if m else None
-    kms = _distances(h, name)
-    rid = str(_first(h, "id", "_id", "objectID", "uid", "slug", "code") or f"{d}-{name}")
-    deadline, _ = _when(_first(h, "enrollmentEndDate", "registrationEndDate", "enrollmentEnd",
-                               "registrationEnd", "inscriptionEndDate", "closeDate", "endEnrollment"))
-    url = _first(h, "url", "link", "web", "website")
-    if not (isinstance(url, str) and url.startswith("http")):
-        url = f"https://www.carreirasgalegas.com/events/{rid}"
-    price = _first(h, "price", "fee", "prize", "precio", "cost")
+    if not name:
+        return None
+    kms = sorted({round(float(k), 3) for k in (it.get("km") or km_del_nombre(name)) if 0.1 <= float(k) <= 200},
+                 reverse=True)
+    if kms and kms[0] >= 5:
+        kms = [k for k in kms if k >= 3]      # fuera las categorías infantiles
+    kms = kms[:4]
+    region = re.sub(r"^\((.*)\)$", r"\1", it.get("region") or "").strip() or None
+    place = it.get("place") or None
+    if place and region and (place[:1].islower() or "/" in place):
+        place = region      # la web puso la calle en el campo de la localidad
     return {
-        "id": rid,
-        "name": str(name).strip(),
-        "date": d.isoformat(),
-        "time": t,
-        "place": _first(h, "locality", "city", "town", "municipality", "location.name",
-                        "location.locality", "place", "concello", "localidad"),
-        "province": _first(h, "province", "state", "provincia", "location.province"),
+        "id": str(it.get("id") or f"{d}-{name}"),
+        "name": bonito(name),
+        "date": d,
+        "time": it.get("time") or None,
+        "place": place,
+        "province": region,
         "km": kms,
         "dist": " · ".join(_km_label(k) for k in kms),
-        "type": _tipo(h, name),
-        "circuit": _first(h, "circuit.name", "circuitName", "circuit"),
-        "deadline": deadline.isoformat() if deadline else None,
-        "price": price if isinstance(price, (int, float, str)) else None,
-        "start": _first(h, "startPlace", "meetingPoint", "address", "location.address"),
-        "url": url,
+        "type": tipo(name),
+        "circuit": bonito(it["circuit"]) if it.get("circuit") else None,
+        "deadline": it.get("deadline") or None,
+        "price": it.get("price") or None,
+        "start": it.get("start") or None,
+        "url": it.get("url"),
+        "source": FUENTES.get(it.get("source"), it.get("source")),
     }
+
+
+def _clave(name):
+    """Nombre reducido para comparar entre webs: sin acentos, numerales ni palabras vacías."""
+    t = unicodedata.normalize("NFD", (name or "").lower())
+    t = "".join(c for c in t if unicodedata.category(c) != "Mn")
+    words = re.findall(r"[a-z0-9]+", t)
+    vacias = MENORES | {"carreira", "carrera", "popular", "edicion", "edicion", "concello", "ayuntamiento"}
+    return {w for w in words if w not in vacias and not re.fullmatch(r"[ivxlcdm]+", w) and len(w) > 2}
+
+
+def merge(items):
+    """Junta la misma carrera publicada en las dos webs (mismo día y nombre
+    parecido): se queda la ficha de Carreiras Galegas y completa los huecos
+    (distancias, hora, precio, plazo) con lo de CCNorte."""
+    out = []
+    for r in items:
+        twin = None
+        for o in out:
+            if o["date"] != r["date"] or o["source"] == r["source"]:
+                continue
+            a, b = _clave(o["name"]), _clave(r["name"])
+            if a and b and len(a & b) / min(len(a), len(b)) >= 0.6:
+                twin = o
+                break
+        if not twin:
+            out.append(dict(r))
+            continue
+        main, other = (twin, r) if twin["source"] == "Carreiras Galegas" else (r, twin)
+        merged = dict(main)
+        for k, v in other.items():
+            if merged.get(k) in (None, "", []) and v not in (None, "", []):
+                merged[k] = v
+        merged["also"] = other["url"]
+        out[out.index(twin)] = merged
+    return out
 
 
 # ─── Novedades ───
@@ -216,23 +204,17 @@ def mark_new(items, seen):
 
 
 def refresh():
-    """Descarga, normaliza, guarda y actualiza las novedades. Devuelve un resumen."""
-    if not configured():
-        raise RuntimeError("Falta CARREIRAS_SEARCH_KEY en Vercel")
-    hits = fetch_raw()
+    """Lee el JSON de los scrapers, normaliza, guarda y actualiza las novedades."""
+    data = fetch_data()
     today = hoy().isoformat()
-    items, seen_ids = [], set()
-    for h in hits:
-        r = normalize(h) if isinstance(h, dict) else None
-        if r and r["date"] >= today and r["id"] not in seen_ids:
-            seen_ids.add(r["id"])
-            items.append(r)
+    items = [r for r in (normalize(it) for it in data.get("items") or [] if isinstance(it, dict))
+             if r and r["date"] >= today]
+    items = merge(sorted(items, key=lambda r: r["source"] != "Carreiras Galegas"))
     items.sort(key=lambda r: (r["date"], r["time"] or "99", r["name"]))
     seen = mark_new(items, load(KEY_SEEN))
     save(KEY_SEEN, seen)
     save(KEY_RACES, {"items": items, "fetched_at": ahora().isoformat(), "error": None,
-                     "total_hits": len(hits),
-                     "sample_keys": sorted(hits[0].keys()) if hits and isinstance(hits[0], dict) else []})
+                     "scraped_at": data.get("generated_at"), "sources": data.get("sources")})
     return {"races": len(items), "new": len(seen["new"])}
 
 
@@ -290,9 +272,10 @@ def payload():
         if r["id"] not in listed:
             items.append(dict(r, is_new=False, signed=True))
     items.sort(key=lambda r: (r["date"], r.get("time") or "99", r["name"]))
-    return {"configured": configured(), "items": items, "fetched_at": data.get("fetched_at"),
+    return {"configured": bool(data), "items": items, "fetched_at": data.get("fetched_at"),
+            "scraped_at": data.get("scraped_at"), "sources": data.get("sources"),
             "error": data.get("error"), "new_count": sum(1 for r in items if r["is_new"]),
-            "new_key": seen.get("new_key"), "sample_keys": data.get("sample_keys")}
+            "new_key": seen.get("new_key")}
 
 
 def widget_info():

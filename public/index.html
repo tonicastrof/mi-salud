@@ -712,7 +712,7 @@ function Coach({t,ctx,onClearCtx,plan,planAt,focus,draft}){
 }
 
 // ─── Carreras (Carreiras Galegas) ───
-const RT={Ruta:A.run,Trail:A.hike,Cross:A.stress,Pista:A.steps,Infantil:"#9ca3af"};
+const RT={Ruta:A.run,Trail:A.hike,Cross:A.stress,Pista:A.steps,Andaina:"#14b8a6",Infantil:"#9ca3af"};
 const MESES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
 const MESES_L=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 const DSEM=["dom","lun","mar","mié","jue","vie","sáb"];
@@ -727,6 +727,7 @@ function prediccion(r,preds){const km=(r.km||[])[0];if(!km)return null;
   const p=(preds||[]).find(x=>x.km&&Math.abs(x.km-km)/km<0.1);return p?p.time:null}
 // Lo que se manda al servidor al apuntarse: la carrera tal cual, sin las marcas de la vista
 const raceSnap=(r)=>{const{is_new,signed,...x}=r;return x};
+const ACTIONS_URL="https://github.com/tonicastrof/mi-salud/actions/workflows/carreras.yml";
 
 function TypeTag({r,t}){const c=RT[r.type]||t.sb;return h("span",{style:{fontSize:11,fontWeight:600,color:c,background:c+"1f",borderRadius:5,padding:"1px 6px"}},r.type)}
 function NewTag(){return h("span",{style:{fontSize:11,fontWeight:700,color:"#fff",background:L.ac,borderRadius:5,padding:"1px 6px"}},"Nueva")}
@@ -763,6 +764,7 @@ function RaceSheet({r,t,onClose,onSign,onAsk,preds}){
     r.price!=null&&r.price!==""&&{l:"Precio",v:typeof r.price==="number"?r.price+" €":String(r.price)},
     r.start&&{l:"Salida",v:r.start},
     r.circuit&&{l:"Circuito",v:r.circuit},
+    r.source&&{l:"Fuente",v:r.source+(r.also?" + CCNorte":"")},
   ].filter(Boolean);
   return h("div",{onClick:onClose,style:{position:"fixed",inset:0,zIndex:100,background:"rgba(0,0,0,0.45)",display:"flex",justifyContent:"center",alignItems:"flex-end"}},
     h("div",{onClick:e=>e.stopPropagation(),style:{width:"100%",maxWidth:560,maxHeight:"92vh",overflow:"auto",background:t.bg,borderRadius:"20px 20px 0 0"}},
@@ -786,7 +788,8 @@ function RaceSheet({r,t,onClose,onSign,onAsk,preds}){
         filas.length>0&&h("div",{style:{background:t.cd,border:"1px solid "+t.bd,borderRadius:12,padding:"4px 16px"}},
           filas.map((f,i)=>h("div",{key:i,style:{display:"flex",justifyContent:"space-between",gap:12,padding:"11px 0",borderBottom:i<filas.length-1?"1px solid "+t.ln:"none"}},
             h("span",{style:{fontSize:12,color:t.sb}},f.l),h("span",{style:{fontSize:13,fontWeight:600,color:f.c||t.tx,textAlign:"right"}},f.v)))),
-        h("a",{href:r.url,target:"_blank",rel:"noopener",style:{height:46,borderRadius:12,background:t.ac,color:t.acT,fontSize:14,fontWeight:600,textDecoration:"none",display:"flex",alignItems:"center",justifyContent:"center",gap:8}},"Ver e inscribirme en Carreiras Galegas",h(Ic,{n:"ext",s:15})),
+        h("a",{href:r.url,target:"_blank",rel:"noopener",style:{height:46,borderRadius:12,background:t.ac,color:t.acT,fontSize:14,fontWeight:600,textDecoration:"none",display:"flex",alignItems:"center",justifyContent:"center",gap:8}},"Ver e inscribirme en "+(r.source||"la web"),h(Ic,{n:"ext",s:15})),
+        r.also&&h("a",{href:r.also,target:"_blank",rel:"noopener",style:{fontSize:13,fontWeight:600,color:t.ac,textAlign:"center",textDecoration:"none"}},"Ver también en CCNorte (distancias y precios)"),
         onAsk&&h("button",{onClick:()=>onAsk(r),style:{height:44,borderRadius:12,border:"1px solid "+t.bd,background:t.cd,color:t.ac,fontSize:14,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}},h(Ic,{n:"chat",s:16}),"Preguntar al entrenador cómo prepararla"))));
 }
 
@@ -836,9 +839,9 @@ function Carreras({t,data,onSign,onSeen,onOpen,onRefresh,busy}){
   const setProv=(v)=>{setProvRaw(v);try{localStorage.setItem("races_prov",v)}catch(e){}};
   const[nWeeks,setNWeeks]=useState(6);
   if(!data)return h("div",{style:{textAlign:"center",color:t.sb,fontSize:13,padding:"40px 0"}},h(Spin,null)," Cargando carreras…");
-  if(!data.configured&&!(data.items||[]).length)return h(Card,{title:"Carreras de Carreiras Galegas",accent:A.run,t},
-    h("div",{style:{fontSize:13,color:t.sb,lineHeight:1.5}},"Falta configurar la fuente. Añade en Vercel la variable ",h("code",{style:{background:t.ph,padding:"1px 5px",borderRadius:4}},"CARREIRAS_SEARCH_KEY"),
-      " (y, si hace falta, ",h("code",{style:{background:t.ph,padding:"1px 5px",borderRadius:4}},"CARREIRAS_SEARCH_INDEX"),") y pulsa Sincronizar."));
+  if(!data.configured&&!(data.items||[]).length)return h(Card,{title:"Carreras",accent:A.run,t},
+    h("div",{style:{fontSize:13,color:t.sb,lineHeight:1.5}},"Todavía no hay carreras descargadas. El calendario de Carreiras Galegas y CCNorte se descarga cada mañana; pulsa ",h("strong",null,"Actualizar carreras")," para traer la última descarga."),
+    h("button",{onClick:onRefresh,disabled:busy,style:chip(t,{alignSelf:"flex-start"})},busy?h(Spin,null):h(Ic,{n:"sync",s:14}),busy?"Actualizando":"Actualizar carreras"));
   const items=data.items||[];
   const provs=[...new Set(items.map(r=>r.province).filter(Boolean))].sort();
   const nSigned=items.filter(r=>r.signed).length;
@@ -866,8 +869,8 @@ function Carreras({t,data,onSign,onSeen,onOpen,onRefresh,busy}){
       h("div",{style:{display:"flex",gap:6,flexWrap:"wrap"}},types.map(l=>{const on=flt===l,c=RT[l]||(l==="Apuntadas"?A.bat:null);
         return h("button",{key:l,onClick:()=>setFlt(l),"aria-pressed":on,style:{height:34,padding:"0 12px",borderRadius:17,fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6,
           border:"1px solid "+(on?t.tx:t.bd),background:on?t.tx:t.cd,color:on?t.bg:t.sb}},c&&h(Dot,{c}),l==="Apuntadas"?"Apuntadas ("+nSigned+")":l)})),
-      provs.length>1&&h("select",{value:prov,onChange:e=>setProv(e.target.value),"aria-label":"Provincia",style:{alignSelf:"flex-start",height:34,borderRadius:8,border:"1px solid "+t.bd,background:t.cd,color:t.sb,fontSize:12,fontWeight:600,padding:"0 8px"}},
-        h("option",{value:""},"Todas las provincias"),provs.map(p=>h("option",{key:p,value:p},p)))),
+      provs.length>1&&h("select",{value:prov,onChange:e=>setProv(e.target.value),"aria-label":"Zona",style:{alignSelf:"flex-start",height:34,borderRadius:8,border:"1px solid "+t.bd,background:t.cd,color:t.sb,fontSize:12,fontWeight:600,padding:"0 8px"}},
+        h("option",{value:""},"Todas las zonas"),provs.map(p=>h("option",{key:p,value:p},p)))),
     view==="agenda"?h(React.Fragment,null,
       groups.length===0&&h("div",{style:{fontSize:13,color:t.sb,background:t.cd,border:"1px dashed "+t.bd,borderRadius:12,padding:20,textAlign:"center"}},items.length?"Ninguna carrera con esos filtros":"No hay carreras próximas en el calendario"),
       groups.slice(0,nWeeks).map(g=>{const[ti,ra]=gTitle(g);return h("section",{key:g.k,style:{display:"flex",flexDirection:"column",gap:8,marginBottom:16}},
@@ -878,9 +881,11 @@ function Carreras({t,data,onSign,onSeen,onOpen,onRefresh,busy}){
       groups.length>nWeeks&&h("button",{onClick:()=>setNWeeks(nWeeks+6),style:{width:"100%",height:44,border:"none",borderRadius:10,background:t.ph,color:t.ac,fontSize:13,fontWeight:600,cursor:"pointer",marginBottom:12}},"Ver más fines de semana"))
     :h(RaceCalendar,{items:shown,t,onOpen}),
     h("div",{style:{fontSize:12,color:t.sb,textAlign:"center",marginTop:12,display:"flex",flexDirection:"column",alignItems:"center",gap:8}},
-      h("span",null,"Fuente: carreirasgalegas.com"+(data.fetched_at?" · actualizado "+new Date(data.fetched_at).toLocaleString("es",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"")),
-      data.error&&h("span",{style:{color:t.bR.f}},"Última descarga fallida: "+data.error),
-      h("button",{onClick:onRefresh,disabled:busy,style:chip(t)},busy?h(Spin,null):h(Ic,{n:"sync",s:14}),busy?"Actualizando":"Actualizar carreras")));
+      h("span",null,"Fuentes: carreirasgalegas.com y ccnorte.com"+((data.scraped_at||data.fetched_at)?" · descargado "+new Date(data.scraped_at||data.fetched_at).toLocaleString("es",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):"")),
+      Object.entries(data.sources||{}).filter(([k,v])=>v&&!v.ok).map(([k])=>h("span",{key:k,style:{color:t.bY.f}},"No se pudo leer "+(k==="ccnorte"?"CCNorte":"Carreiras Galegas")+" en la última descarga")),
+      data.error&&h("span",{style:{color:t.bR.f}},"Última actualización fallida: "+data.error),
+      h("button",{onClick:onRefresh,disabled:busy,style:chip(t)},busy?h(Spin,null):h(Ic,{n:"sync",s:14}),busy?"Actualizando":"Actualizar carreras"),
+      h("a",{href:ACTIONS_URL,target:"_blank",rel:"noopener",style:{fontSize:12,color:t.ac,textDecoration:"none"}},"Descargar ahora de las webs (GitHub → Run workflow)")));
 }
 
 // Aviso en Resumen la semana de una carrera apuntada (y si hay pruebas nuevas)

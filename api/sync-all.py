@@ -121,9 +121,7 @@ def _calculate(meta):
 
 
 def _sync_races(meta):
-    # Carreiras Galegas: si no está configurado no es un error, simplemente no hay carreras
-    if not races.configured():
-        return {"skipped": "sin CARREIRAS_SEARCH_KEY"}
+    # Lee el carreras.json que deja cada mañana el workflow «Carreras» de GitHub
     out = races.refresh()
     meta["races_synced"] = ahora().isoformat()
     return out

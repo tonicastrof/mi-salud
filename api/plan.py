@@ -3,7 +3,7 @@ GET /api/plan            → próximos entrenos programados (lo guardado en Redi
 GET /api/plan?refresh=1  → los vuelve a descargar del calendario de Garmin
 GET /api/compliance?date=2026-10-05&title=Base
                          → ese entreno, pedido frente a hecho (_lib/compliance.py)
-GET  /api/races          → carreras de Carreiras Galegas (?refresh=1 las vuelve a bajar)
+GET  /api/races          → carreras (Carreiras Galegas y CCNorte; ?refresh=1 relee la descarga)
 POST /api/races          → {"action":"sign","id":...,"on":true} marca/desmarca apuntado,
                            {"action":"seen"} da por vistas las pruebas nuevas
 
