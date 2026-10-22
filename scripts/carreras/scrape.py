@@ -99,6 +99,24 @@ def hora_y_salida(txt):
     return hora, lugar
 
 
+def distancias(txt):
+    """Distancias que menciona la ficha («percorrido de 10 km», «8.000 metros»,
+    «21,097 km»). Se saltan las líneas de precios e inscripción."""
+    kms = set()
+    for line in txt.splitlines():
+        if re.search(r"inscri|prezo|precio|€|euros|aparcamento|parking", line, re.I):
+            continue
+        for num, unit in re.findall(r"(\d{1,3}(?:[.,]\d{1,3})?)\s*(km|kms|quil[oó]metros|kil[oó]metros|k)\b", line, re.I):
+            v = float(num.replace(".", "").replace(",", ".")) if re.fullmatch(r"\d{1,3}\.\d{3}", num) else float(num.replace(",", "."))
+            if 1 <= v <= 120:
+                kms.add(round(v, 3))
+        for num in re.findall(r"\b(\d{1,2}\.?\d{3})\s*(?:m|metros)\b", line, re.I):
+            v = float(num.replace(".", "")) / 1000
+            if 1 <= v <= 60:
+                kms.add(round(v, 3))
+    return sorted(kms, reverse=True)[:6]
+
+
 # ─── Carreiras Galegas ───
 
 def carreiras_galegas():
@@ -151,6 +169,9 @@ def carreiras_galegas():
             except Exception as e:
                 print("  ficha sin cargar:", r["name"], e.__class__.__name__)
                 continue
+            kms = distancias(txt.split("Información da Carreira")[-1])
+            if kms:
+                r["km"] = kms
             t, lugar = hora_y_salida(txt)
             if t:
                 r["time"] = t

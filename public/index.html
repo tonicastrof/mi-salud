@@ -781,10 +781,11 @@ function RaceSheet({r,t,onClose,onSign,onAsk,preds}){
         h(SignBtn,{r,t,onSign,big:true}),
         r.signed&&h("div",{style:{fontSize:12,color:t.bG.f,textAlign:"center",marginTop:-4}},"Te lo recordaré esa semana en Resumen y en el widget")),
       h("div",{style:{padding:16,display:"flex",flexDirection:"column",gap:14}},
-        h("div",{style:{display:"grid",gridTemplateColumns:"repeat("+(pred?3:2)+",minmax(0,1fr))",background:t.cd,border:"1px solid "+t.bd,borderRadius:12,padding:"12px 4px"}},
-          [{v:enDias(n),l:"cuenta atrás"},{v:(r.km&&r.km[0])?r.dist.split(" · ")[0]:"—",l:"distancia"},pred&&{v:pred,l:"tu predicción"}].filter(Boolean).map((x,i)=>
+        (()=>{const celdas=[{v:enDias(n),l:"cuenta atrás"},r.km&&r.km[0]&&{v:r.dist.split(" · ")[0],l:"distancia"},pred&&{v:pred,l:"tu predicción"}].filter(Boolean);
+        return h("div",{style:{display:"grid",gridTemplateColumns:"repeat("+celdas.length+",minmax(0,1fr))",background:t.cd,border:"1px solid "+t.bd,borderRadius:12,padding:"12px 4px"}},
+          celdas.map((x,i)=>
             h("div",{key:i,style:{textAlign:"center",borderLeft:i?"1px solid "+t.ln:"none",padding:"0 4px"}},
-              h("div",{style:{fontSize:17,fontWeight:600,color:t.tx}},x.v),h("div",{style:{fontSize:12,color:t.sb}},x.l)))),
+              h("div",{style:{fontSize:17,fontWeight:600,color:t.tx}},x.v),h("div",{style:{fontSize:12,color:t.sb}},x.l))))})(),
         filas.length>0&&h("div",{style:{background:t.cd,border:"1px solid "+t.bd,borderRadius:12,padding:"4px 16px"}},
           filas.map((f,i)=>h("div",{key:i,style:{display:"flex",justifyContent:"space-between",gap:12,padding:"11px 0",borderBottom:i<filas.length-1?"1px solid "+t.ln:"none"}},
             h("span",{style:{fontSize:12,color:t.sb}},f.l),h("span",{style:{fontSize:13,fontWeight:600,color:f.c||t.tx,textAlign:"right"}},f.v)))),
