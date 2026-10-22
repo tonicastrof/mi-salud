@@ -74,6 +74,31 @@ def metros(txt):
     return v * 1000 if "km" in t and v < 500 else v
 
 
+HORA = re.compile(r"\b([01]?\d|2[0-3])\s*[:.h]\s*([0-5]\d)\b")
+CLAVE_HORA = re.compile(r"sa[ií]da|salida|hora|comez|comienz|inicio|a partir d|dará comezo|darase", re.I)
+
+
+def hora_y_salida(txt):
+    """Hora y lugar de salida de la ficha de Carreiras Galegas. La hora se
+    toma de la primera línea que hable de salida o comienzo (nunca de las
+    de inscripción, que traen «ata as 23:59»)."""
+    hora, lugar = None, None
+    for line in txt.splitlines():
+        if re.search(r"inscri|ata as|hasta las|prazo|plazo", line, re.I):
+            continue
+        if hora is None and CLAVE_HORA.search(line):
+            m = HORA.search(line.split("/20")[-1] if re.search(r"\d{1,2}/\d{1,2}/20\d\d", line) else line)
+            if m and (m.group(1), m.group(2)) != ("0", "00"):
+                hora = f"{int(m.group(1)):02d}:{m.group(2)}"
+        if lugar is None:
+            m = re.search(r"sa[ií]da(?:\s+e\s+(?:chegada|meta))?\s*[:,]?\s*(?:dar[aá]se\s+|ser[aá]\s+|estará\s+|situada\s+)?(?:(?:n[ao]s?|en|desde)\s+|(?<=:)\s*|(?<=: ))([^,\n]{3,60})", line, re.I)
+            if m:
+                cand = HORA.sub("", m.group(1)).strip(" .,:-")
+                if re.search(r"[A-Za-zÁÉÍÓÚáéíóúñÑ]{3}", cand) and not re.search(r"^(ás|a las|horas?)\b", cand, re.I):
+                    lugar = cand
+    return hora, lugar
+
+
 # ─── Carreiras Galegas ───
 
 def carreiras_galegas():
@@ -126,18 +151,15 @@ def carreiras_galegas():
             except Exception as e:
                 print("  ficha sin cargar:", r["name"], e.__class__.__name__)
                 continue
-            # Solo horas de salida/comienzo (no «inscricións ata as 23:59»)
-            m = re.search(r"(?:a partir d(?:as|e las)|hora de sa[ií]da\W*|sa[ií]da\W{0,3}(?:[^\n]{0,25}?\s)?(?:ás|a las)|comez[oa][^\n]{0,25}?(?:ás|a las)|dará comezo[^\n]{0,25}?(?:ás|a las))\s*(\d{1,2})[:.h](\d{2})",
-                          txt, re.I)
-            if m and f"{m.group(1)}:{m.group(2)}" not in ("23:59", "0:00", "00:00"):
-                r["time"] = f"{int(m.group(1)):02d}:{m.group(2)}"
+            t, lugar = hora_y_salida(txt)
+            if t:
+                r["time"] = t
+            if lugar:
+                r["start"] = lugar
             for line in txt.splitlines():
                 if re.search(r"\bcircu[ií]to\b", line, re.I) and len(line) < 90:
                     r["circuit"] = line.strip()
                     break
-            m = re.search(r"Sa[ií]da(?:\s+e\s+(?:chegada|meta))?\s*[:,]?\s*(?:(?:n[ao]s?|en)\s+)?([^\n]{3,60})", txt, re.I)
-            if m:
-                r["start"] = m.group(1).strip().rstrip(".")
         return out
     finally:
         d.quit()
