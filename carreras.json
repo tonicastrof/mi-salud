@@ -1,0 +1,566 @@
+{
+ "generated_at": "2026-10-24T09:03:25.347443Z",
+ "sources": {
+  "carreirasgalegas": {
+   "ok": true,
+   "count": 43
+  },
+  "ccnorte": {
+   "ok": true,
+   "count": 5
+  }
+ },
+ "items": [
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-6mxXbXm4",
+   "name": "IV ANDAINA CONCELLO DE MAÑÓN 2026",
+   "date": "2026-10-24",
+   "place": "Mañón",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/iv-andaina-concello-de-man-2026/6mxXbXm4",
+   "regulation": "https://races.blob.core.windows.net/competitions/6mxXbXm4/regulations/Regulamento DE MAÑON (Def 2026).pdf"
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-w95AKA9V",
+   "name": "XII CARREIRA POPULAR VENTORRILLO",
+   "date": "2026-10-25",
+   "place": "A Coruña",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/xii-carreira-popular-ventorrillo/w95AKA9V",
+   "regulation": "https://races.blob.core.windows.net/competitions/w95AKA9V/regulations/reglamento-6ac794ddcf3059.49756646.pdf",
+   "start": "Rúa Alcalde Salorio Suárez"
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-dlB2LWln",
+   "name": "XLVII CARREIRA PEDESTRE SANTIAGO - EL CORREO GALLEGO",
+   "date": "2026-10-25",
+   "place": "Santiago de Compostela",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/xlvii-carreira-pedestre-santiago-el-correo-gallego/dlB2LWln",
+   "regulation": "https://races.blob.core.windows.net/competitions/dlB2LWln/regulations/Reglamento Carreira Pedestre 2026-online.pdf",
+   "time": "10:00",
+   "start": "Avenida Xoán XXIII"
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-YjMOoLm4",
+   "name": "XII CARREIRA POPULAR CONCELLO DE RIANXO",
+   "date": "2026-10-31",
+   "place": "Rianxo",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/xii-carreira-popular-concello-de-rianxo/YjMOoLm4",
+   "regulation": null,
+   "time": "16:30",
+   "start": "Praza Castelao",
+   "circuit": "XII CIRCUÍTO DEPUTACIÓN DA CORUÑA 2026"
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-aj4AJKl4",
+   "name": "CROSS NACIONAL PONTE ROMANA DE LUGO 2026",
+   "date": "2026-11-01",
+   "place": "Lugo",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/cross-nacional-ponte-romana-de-lugo-2026/aj4AJKl4",
+   "regulation": "https://races.blob.core.windows.net/competitions/aj4AJKl4/regulations/reglamento-6a9029b5518168.66211789.pdf",
+   "time": "15:00"
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-z9zBya9q",
+   "name": "I CROS POPULAR CONCELLO DE CARBALLO",
+   "date": "2026-11-07",
+   "place": "Carballo",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/i-cros-popular-concello-de-carballo/z9zBya9q",
+   "regulation": "https://races.blob.core.windows.net/competitions/z9zBya9q/regulations/Regulamento Borrador I Cross Concello de Carballo S.pdf"
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-V9LyyPjJ",
+   "name": "XLIX CARREIRA PEDESTRE POPULAR DO SAN MARTIÑO",
+   "date": "2026-11-08",
+   "place": "Ourense",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/xlix-carreira-pedestre-popular-do-san-martio/V9LyyPjJ",
+   "regulation": "https://races.blob.core.windows.net/competitions/V9LyyPjJ/regulations/CMD - SM 26 - Regulamento v1 baixa.pdf",
+   "time": "11:00"
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-VjK3npjJ",
+   "name": "XIII “FERROL, EN MARCHA CONTRA O CANCRO\"",
+   "date": "2026-11-08",
+   "place": "Ferrol",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/xiii-ferrol-en-marcha-contra-o-cancro/VjK3npjJ",
+   "regulation": "https://races.blob.core.windows.net/competitions/VjK3npjJ/regulations/POLÍTICA DE PRIVACIDADE DO EVENTO.pdf",
+   "time": "11:00"
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-gj1NLKlz",
+   "name": "IX TRAIL DAS BESTAS -SERIE OURO",
+   "date": "2026-11-08",
+   "place": "Muras",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/ix-trail-das-bestas-serie-ouro/gj1NLKlz",
+   "regulation": null
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-Blgd4zmL",
+   "name": "XIII MÓVETE POLA DIABETES - MILLA SOLIDARIA ANEDIA (PISTA)",
+   "date": "2026-11-08",
+   "place": "Pontevedra",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/xiii-mvete-pola-diabetes-milla-solidaria-anedia-pista/Blgd4zmL",
+   "regulation": "https://races.blob.core.windows.net/competitions/Blgd4zmL/regulations/2.20261108 Milla anedia.pdf"
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-VjRDeGm7",
+   "name": "III CROS CIDADE DE PONTEVEDRA",
+   "date": "2026-11-08",
+   "place": "Pontevedra",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/iii-cros-cidade-de-pontevedra/VjRDeGm7",
+   "regulation": "https://races.blob.core.windows.net/competitions/VjRDeGm7/regulations/Regulamento Cros 08.11.pdf",
+   "time": "11:50"
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-AmkKJ4m4",
+   "name": "XII CORRESAN RUTA DA PRATA ANGROIS - MEMORIAL MANOLO MOURE",
+   "date": "2026-11-14",
+   "place": "Santiago de Compostela",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/xii-corresan-ruta-da-prata-angrois-memorial-manolo-moure/AmkKJ4m4",
+   "regulation": "https://races.blob.core.windows.net/competitions/AmkKJ4m4/regulations/Regulamento XII Circuito de Carreiras Saudables - CorreSan 2026.pdf",
+   "time": "17:15",
+   "circuit": "XII CIRCUÍTO DE CARREIRAS SAUDABLES CORRESAN 2026"
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-omrYYQl2",
+   "name": "CAMPIONATO DE ESPAÑA MASTER 5K EN RUTA 2026",
+   "date": "2026-11-15",
+   "place": "Negreira",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/campionato-de-espaa-master-5k-en-ruta-2026/omrYYQl2",
+   "regulation": null
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-6lZJvbl1",
+   "name": "XLV CARREIRA INTERNACIONAL DE NEGREIRA \"A CLÁSICA\"",
+   "date": "2026-11-15",
+   "place": "Negreira",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/xlv-carreira-internacional-de-negreira-a-clsica/6lZJvbl1",
+   "regulation": "https://races.blob.core.windows.net/competitions/6lZJvbl1/regulations/ficheros.pdf",
+   "time": "08:30",
+   "circuit": "XII CIRCUÍTO DEPUTACIÓN DA CORUÑA 2026"
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-2mJVJGmM",
+   "name": "XXVIII LA21 MEDIA MARATON DE VIGO",
+   "date": "2026-11-15",
+   "place": "Vigo",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/xxviii-la21-media-maraton-de-vigo/2mJVJGmM",
+   "regulation": null
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-YjMOGom4",
+   "name": "II TRAIL MONTE ACIBAL",
+   "date": "2026-11-15",
+   "place": "Moraña",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/ii-trail-monte-acibal/YjMOGom4",
+   "regulation": "https://races.blob.core.windows.net/competitions/YjMOGom4/regulations/Reglamento II Trail Monte Acibal (2).pdf",
+   "time": "09:00"
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-v9OMaRlL",
+   "name": "IXª CARREIRA E ANDAINA DAS CIDADES CONTRA O CANCRO DE PANCREAS - VILAMARTÍN",
+   "date": "2026-11-15",
+   "place": "Vilamartín de Valdeorras",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/ix-carreira-e-andaina-das-cidades-contra-o-cancro-de-pancreas-vilamartn/v9OMaRlL",
+   "regulation": "https://races.blob.core.windows.net/competitions/v9OMaRlL/regulations/NORMAS DE PARTICIPACIÓN CARREIRA DAS CIDADES 2026.pdf",
+   "time": "10:00"
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-a9ako7lB",
+   "name": "III CARREIRA CAMIÑOS DA VÍA VERDE – DEPUTACIÓN DA CORUÑA",
+   "date": "2026-11-21",
+   "place": "Ordes - Oroso",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/iii-carreira-camios-da-va-verde-deputacin-da-corua/a9ako7lB",
+   "regulation": "https://races.blob.core.windows.net/competitions/a9ako7lB/regulations/Regulamento III Carreira Camiños da Vía Verde - 21-11-2026.pdf",
+   "km": [
+    10.0,
+    5.0
+   ],
+   "time": "10:30"
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-V9LyPojJ",
+   "name": "XII CARREIRA E ANDAINA DAS CIDADES CONTRA O CANCRO DE PANCREAS - SANTAIGO DE COMPOSTELA",
+   "date": "2026-11-22",
+   "place": "Santiago de Compostela",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/xii-carreira-e-andaina-das-cidades-contra-o-cancro-de-pancreas-santaigo-de-compostela/V9LyPojJ",
+   "regulation": "https://races.blob.core.windows.net/competitions/V9LyPojJ/regulations/4 REGLAMENTO_CARRERA DE LAS CIUDADES CONTRA EL CANCER DE PANCREAS_Santiago de Compostela 2026.pdf",
+   "time": "10:30"
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-BlgdNymL",
+   "name": "XIV CARREIRA POPULAR NOVO MESOIRO",
+   "date": "2026-11-22",
+   "place": "A Coruña",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/xiv-carreira-popular-novo-mesoiro/BlgdNymL",
+   "regulation": null
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-Ll7x8YmO",
+   "name": "XI CARREIRA PEDESTRE DE RIBADAVIA",
+   "date": "2026-11-22",
+   "place": "Ribadavia",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/xi-carreira-pedestre-de-ribadavia/Ll7x8YmO",
+   "regulation": "https://races.blob.core.windows.net/competitions/Ll7x8YmO/regulations/REGULAMENTO+CARREIRA PEDESTRE+RIBADAVIA.pdf",
+   "time": "11:00"
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-6lZJBvl1",
+   "name": "XVIII CARREIRA POPULAR DOS SANTIÑOS",
+   "date": "2026-11-22",
+   "place": "O Barco de Valdeorras",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/xviii-carreira-popular-dos-santios/6lZJBvl1",
+   "regulation": "https://races.blob.core.windows.net/competitions/6lZJBvl1/regulations/atletismo.gal.pdf",
+   "km": [
+    5.0
+   ],
+   "time": "11:00"
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-pldOEwjR",
+   "name": "III CORRENDO ENTRE AUGA, MONDARIZ BALNEARIO",
+   "date": "2026-11-28",
+   "place": "Vigo",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/iii-correndo-entre-auga-mondariz-balneario/pldOEwjR",
+   "regulation": null
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-a9akD7lB",
+   "name": "XXIX CROSS GUILLELME BROWN",
+   "date": "2026-11-28",
+   "place": "O Pereiro de Aguiar",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/xxix-cross-guillelme-brown/a9akD7lB",
+   "regulation": "https://races.blob.core.windows.net/competitions/a9akD7lB/regulations/Regulamento XXIX Cross Guillelme Brown.pdf",
+   "time": "10:30"
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-qjyNkklK",
+   "name": "I CARREIRA DAS EMPRESAS SANTIAGO DE COMPOSTELA",
+   "date": "2026-12-05",
+   "place": "Santiago de Compostela",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/i-carreira-das-empresas-santiago-de-compostela/qjyNkklK",
+   "regulation": null
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-z9zBoZ9q",
+   "name": "47º MEMORIAL BELARMINO ALONSO DE CAMPO A TRAVÉS",
+   "date": "2026-12-06",
+   "place": "Vigo",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/47-memorial-belarmino-alonso-de-campo-a-travs/z9zBoZ9q",
+   "regulation": "https://races.blob.core.windows.net/competitions/z9zBoZ9q/regulations/REGULAMENTO.pdf"
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-njE2OGlO",
+   "name": "XXI MAR DE BOIRO - 19º MEMORIAL PEPE BUCETA",
+   "date": "2026-12-06",
+   "place": "Boiro",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/xxi-mar-de-boiro-19-memorial-pepe-buceta/njE2OGlO",
+   "regulation": null
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-P92xYOlo",
+   "name": "CAMPIONATO XUNTA DE GALICIA DE MEDIO MARATÓN 2026",
+   "date": "2026-12-08",
+   "place": "Vilagarcía de Arousa",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/campionato-xunta-de-galicia-de-medio-maratn-2026/P92xYOlo",
+   "regulation": null
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-LlwXBRmp",
+   "name": "XLIX TROFEO DE CAMPO A TRAVÉS EN SAN MIGUEL DE OIA - VIGO",
+   "date": "2026-12-13",
+   "place": "San Miguel de Oia",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/xlix-trofeo-de-campo-a-travs-en-san-miguel-de-oia-vigo/LlwXBRmp",
+   "regulation": null
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-w95AWw9V",
+   "name": "XL MEMORIAL ADOLFO ROS - VOLTA Á RÍA",
+   "date": "2026-12-13",
+   "place": "Fene, Narón e Ferrol e Neda",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/xl-memorial-adolfo-ros-volta-ra/w95AWw9V",
+   "regulation": null
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-bl3LYnmP",
+   "name": "X CARREIRA NOCTURNA DE SADA “NINGUÉN SEN NADAL”",
+   "date": "2026-12-18",
+   "place": "Sada",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/x-carreira-nocturna-de-sada-ningun-sen-nadal/bl3LYnmP",
+   "regulation": null
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-4mVokZ9p",
+   "name": "XV CARREIRA POPULAR SIN-SON 10K",
+   "date": "2026-12-20",
+   "place": "Porto do Son",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/xv-carreira-popular-sin-son-10k/4mVokZ9p",
+   "regulation": null
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-Jlb8Ay9n",
+   "name": "XXIII CARREIRA DO NADAL DE SAN CIBRAO DAS VIÑAS",
+   "date": "2026-12-20",
+   "place": "San Cibrao da Viñas",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/xxiii-carreira-do-nadal-de-san-cibrao-das-vias/Jlb8Ay9n",
+   "regulation": null
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-alq2xam0",
+   "name": "III SAN SILVESTRE O PINO",
+   "date": "2026-12-26",
+   "place": "O Pino",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/iii-san-silvestre-o-pino/alq2xam0",
+   "regulation": null
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-2jWnX196",
+   "name": "MULTIEVENTO 2025 TRAIL LOUSAME E CTO. XUNTA DE GALICIA TRAIL MARATÓN",
+   "date": "2026-12-27",
+   "place": "Lousame",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/multievento-2025-trail-lousame-e-cto-xunta-de-galicia-trail-maratn/2jWnX196",
+   "regulation": null
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-V9LyGQjJ",
+   "name": "XXI CARREIRA DE FIN DE ANO 2026 MUGARDOS - ARES - MUGARDOS",
+   "date": "2026-12-27",
+   "place": "Mugardos",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/xxi-carreira-de-fin-de-ano-2026-mugardos-ares-mugardos/V9LyGQjJ",
+   "regulation": null
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-4joG00jY",
+   "name": "V SAN SILVESTRE DE NEDA",
+   "date": "2026-12-31",
+   "place": "Neda",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/v-san-silvestre-de-neda/4joG00jY",
+   "regulation": null
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-amed5ylZ",
+   "name": "II CARREIRA TERRA DO QUEIXO",
+   "date": "2027-02-28",
+   "place": "Arzúa",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/ii-carreira-terra-do-queixo/amed5ylZ",
+   "regulation": null
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-Pj0Xv2jn",
+   "name": "XVIII O PORRIÑO 10K",
+   "date": "2027-03-21",
+   "place": "O Porriño",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/xviii-o-porrio-10k/Pj0Xv2jn",
+   "regulation": null
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-LlwXYRmp",
+   "name": "VI MEDIA MARATÓN E 10KM DO CAMIÑO INGLÉS",
+   "date": "2027-04-04",
+   "place": "Ordes - Oroso",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/vi-media-maratn-e-10km-do-camio-ingls/LlwXYRmp",
+   "regulation": null
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-AmkKw4m4",
+   "name": "I MEDIA MARATÓN XACOBEO 2027",
+   "date": "2027-05-02",
+   "place": "Santiago de Compostela",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/i-media-maratn-xacobeo-2027/AmkKw4m4",
+   "regulation": null
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-VjRDnkm7",
+   "name": "XL GRAN PREMIO INTERNACIONAL CANTONES",
+   "date": "2027-06-12",
+   "place": "A Coruña",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/xl-gran-premio-internacional-cantones/VjRDnkm7",
+   "regulation": null
+  },
+  {
+   "source": "carreirasgalegas",
+   "id": "fga-69Nbx89x",
+   "name": "X CARREIRADO APÓSTOLO",
+   "date": "2027-07-17",
+   "place": "A Laracha",
+   "region": "Galicia",
+   "url": "https://www.carreirasgalegas.com/events/x-carreirado-apstolo/69Nbx89x",
+   "regulation": null
+  },
+  {
+   "source": "ccnorte",
+   "id": "ccn-xvii-carreira-popular-concello-do-corgo--memorial-quique-casanova",
+   "name": "XVII CARREIRA POPULAR CONCELLO DO CORGO- MEMORIAL QUIQUE CASANOVA",
+   "date": "2026-10-24",
+   "time": "16:30",
+   "place": "O Corgo",
+   "region": "Galicia",
+   "km": [
+    10.5,
+    9.0,
+    2.2,
+    1.1,
+    0.5,
+    0.15
+   ],
+   "price": null,
+   "deadline": null,
+   "url": "https://ccnorte.com/evento/detalle/dp/1/id/3384/xvii-carreira-popular-concello-do-corgo--memorial-quique-casanova"
+  },
+  {
+   "source": "ccnorte",
+   "id": "ccn-xii-carreira-popular-ventorrillo",
+   "name": "XII CARREIRA POPULAR VENTORRILLO",
+   "date": "2026-10-25",
+   "time": "10:00",
+   "place": "A Coruña",
+   "region": "Galicia",
+   "km": [
+    5.85,
+    2.55,
+    1.7,
+    0.85,
+    0.11
+   ],
+   "price": null,
+   "deadline": null,
+   "url": "https://ccnorte.com/evento/index/dp/1"
+  },
+  {
+   "source": "ccnorte",
+   "id": "ccn-xii-carrera-de-la-mujer-almom-drasanvi-2026-contra-el-cancer-de-mama",
+   "name": "XII CARRERA DE LA MUJER ALMOM-DRASANVI 2026 CONTRA EL CÁNCER DE MAMA",
+   "date": "2026-10-25",
+   "time": "10:59",
+   "place": "León",
+   "region": "León",
+   "km": [
+    5.2
+   ],
+   "price": null,
+   "deadline": null,
+   "url": "https://ccnorte.com/evento/detalle/dp/1/id/3386/xii-carrera-de-la-mujer-almom-drasanvi-2026-contra-el-cancer-de-mama"
+  },
+  {
+   "source": "ccnorte",
+   "id": "ccn-3394",
+   "name": "V CARREIRA POPULAR CONCELLO DE COSPEITO 2026",
+   "date": "2026-10-25",
+   "time": "11:30",
+   "place": "Cospeito",
+   "region": "Galicia",
+   "km": [
+    10.0,
+    1.3,
+    1.0,
+    0.15
+   ],
+   "price": null,
+   "deadline": null,
+   "url": "https://terrachallenge.es/es/web/evento/3394/"
+  },
+  {
+   "source": "ccnorte",
+   "id": "ccn-optimilk-pro-cross-ponte-romana-9-0",
+   "name": "OPTIMILK PRO CROSS PONTE ROMANA 9.0",
+   "date": "2026-10-31",
+   "time": "10:00",
+   "place": "Lugo",
+   "region": "Galicia",
+   "km": [
+    5.0,
+    4.32,
+    3.87,
+    2.77,
+    1.67,
+    1.25,
+    0.2
+   ],
+   "price": "0,00€",
+   "deadline": "2026-10-27",
+   "url": "https://ccnorte.com/evento/index/dp/1"
+  }
+ ]
+}
