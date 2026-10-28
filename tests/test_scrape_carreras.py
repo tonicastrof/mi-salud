@@ -33,3 +33,12 @@ def test_consultas_al_mapa():
     assert scrape._consultas("Ordes - Oroso", "Galicia")[:2] == ["Ordes - Oroso, Galicia, España", "Ordes, Galicia, España"]
     assert scrape._consultas("Llanes", "Asturias") == ["Llanes, Asturias, España"]
     assert scrape._consultas("", "Galicia") == []
+
+
+def test_coordenadas_fuera_de_galicia_se_descartan(tmp_path):
+    cache = tmp_path / "geo.json"
+    cache.write_text('{"as esclavas, galicia, españa": null, "as esclavas, españa": [37.16, -3.59],'
+                     ' "noia, galicia, españa": [42.78, -8.89]}', encoding="utf-8")
+    items = [{"place": "As Esclavas", "region": "Galicia"}, {"place": "Noia", "region": "Galicia"}]
+    scrape.geolocalizar(items, str(cache))
+    assert "lat" not in items[0] and items[1]["lat"] == 42.78

@@ -357,6 +357,10 @@ def _consultas(place, region):
            ([f"{b}, España" for b in base] if not zona else [])
 
 
+def en_galicia(lat, lon):
+    return 41.8 <= lat <= 43.85 and -9.35 <= lon <= -6.7
+
+
 def geolocalizar(items, cache_path):
     """Añade lat/lon a cada carrera según su localidad. Respeta el límite de
     Nominatim (1 consulta por segundo) y guarda la caché, también lo que no se
@@ -386,7 +390,8 @@ def geolocalizar(items, cache_path):
                     print("  sin coordenadas:", q, e.__class__.__name__)
                     continue
                 cache[k] = [round(float(got[0]["lat"]), 4), round(float(got[0]["lon"]), 4)] if got else None
-            if cache[k]:
+            # Con «…, España» a secas puede salir un homónimo lejos (As Esclavas → Granada)
+            if cache[k] and (r.get("region") != "Galicia" or en_galicia(*cache[k])):
                 r["lat"], r["lon"] = cache[k]
                 break
     with open(cache_path, "w", encoding="utf-8") as f:
