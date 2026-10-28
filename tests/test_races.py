@@ -119,3 +119,23 @@ def test_apuntada_que_desaparece_del_listado_se_mantiene(store):
 def test_apuntar_una_que_no_existe(store):
     with pytest.raises(KeyError):
         races.set_signed("nada", True)
+
+
+def test_distancia_a_casa(store, monkeypatch):
+    monkeypatch.delenv("CASA_LAT", raising=False)
+    store[races.KEY_RACES] = {"items": [
+        {"id": "son", "name": "Porto do Son", "date": _d(3), "lat": 42.7236, "lon": -9.0049},
+        {"id": "lugo", "name": "Lugo", "date": _d(4), "lat": 43.0097, "lon": -7.5568},
+        {"id": "nada", "name": "Sin mapa", "date": _d(5)}]}
+    p = races.payload()
+    km = {r["id"]: r["km_casa"] for r in p["items"]}
+    assert p["home"] == "Noia" and km["nada"] is None
+    assert 8 <= km["son"] <= 14 and 100 <= km["lugo"] <= 125
+    monkeypatch.setenv("CASA_LAT", "43.0097")
+    monkeypatch.setenv("CASA_LON", "-7.5568")
+    assert next(r for r in races.payload()["items"] if r["id"] == "lugo")["km_casa"] == 0
+
+
+def test_normaliza_coordenadas():
+    r = races.normalize({"name": "X", "date": "2026-11-08", "lat": 42.7, "lon": -8.9})
+    assert r["lat"] == 42.7 and r["lon"] == -8.9

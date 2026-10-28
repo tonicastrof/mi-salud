@@ -397,19 +397,28 @@ La pestaña **Carreras** enseña el calendario por fines de semana o como
 calendario mensual. Marcas con el check las que te apuntas: la semana de la
 carrera sale un aviso en Resumen y en el widget, y el entrenador las tiene en
 cuenta. Las pruebas que aparecen entre una descarga y la siguiente salen como
-«Nueva» y la app de Android avisa con una notificación.
+«Nueva» y la app de Android avisa con una notificación; el filtro **Nuevas**
+deja solo esas.
+
+Cada carrera lleva su distancia en línea recta desde casa (Noia por defecto) y
+se puede filtrar por radio («a menos de 50 km de Noia»). La lista enseña
+también hasta cuándo hay inscripción (de CCNorte y, para las carreras de los
+próximos 60 días, de la ficha de Carreiras Galegas).
 
 Cómo llegan los datos:
 
 1. `.github/workflows/carreras.yml` ejecuta cada mañana `scripts/carreras/scrape.py`,
    que lee www.carreirasgalegas.com/events (con un navegador sin ventana, es
    una app Angular) y ccnorte.com (HTML normal, con distancias, hora, precio y
-   plazo de inscripción). Publica el resultado en `carreras.json` en la rama
-   `datos` (un solo commit, que se reemplaza cada día; Vercel no la despliega).
+   plazo de inscripción). Sitúa cada localidad en el mapa con Nominatim
+   (OpenStreetMap) y publica el resultado en `carreras.json` en la rama
+   `datos`, junto con `geo.json`, la caché de coordenadas (un solo commit, que
+   se reemplaza cada día; Vercel no la despliega).
 2. El servidor lo lee en el paso `races` del cron `sync-all` (o con
    «Actualizar carreras» en la app), junta las carreras repetidas en las dos
    webs y marca las nuevas.
 
 Para descargar en el momento: GitHub → Actions → **Carreras** → Run workflow.
 No hace falta configurar ninguna clave. `CARRERAS_DATA_URL` permite leer el
-JSON de otro sitio.
+JSON de otro sitio, y `CASA_LAT`, `CASA_LON` y `CASA_NOMBRE` cambian el punto
+desde el que se miden las distancias.

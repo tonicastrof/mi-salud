@@ -11,7 +11,12 @@ app lo lee de ahí (api/_lib/races.py). Basado en los scrapers que ya usaba:
 - CCNorte (ccnorte.com): HTML normal; de cada evento salen las categorías con
   su distancia, hora de salida, precio vigente y plazo de inscripción.
 
-Uso:  python scripts/carreras/scrape.py salida.json
+Después se sitúa cada localidad en el mapa con Nominatim (OpenStreetMap) para
+que la app pueda filtrar por distancia a casa. Las coordenadas se guardan en
+una caché (geo.json, también en la rama `datos`), así que cada concello se
+pregunta una sola vez.
+
+Uso:  python scripts/carreras/scrape.py salida.json [geo.json]
 Requisitos: requests, beautifulsoup4, selenium (y Chrome, que ya traen los
 runners de GitHub).
 """
@@ -104,6 +109,59 @@ def hora_y_salida(txt):
     return hora, lugar
 
 
+MESES_TXT = {"xaneiro": 1, "enero": 1, "febreiro": 2, "febrero": 2, "marzo": 3, "abril": 4, "maio": 5,
+             "mayo": 5, "xuño": 6, "junio": 6, "xullo": 7, "julio": 7, "agosto": 8, "setembro": 9,
+             "septiembre": 9, "setiembre": 9, "outubro": 10, "octubre": 10, "novembro": 11,
+             "noviembre": 11, "decembro": 12, "diciembre": 12}
+CLAVE_PLAZO = re.compile(r"inscri|prazo|plazo|peche|cierre|data l[ií]mite|fecha l[ií]mite", re.I)
+FECHA_NUM = re.compile(r"\b(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{2,4}))?\b")
+FECHA_TXT = re.compile(r"\b(\d{1,2})\s+(?:de\s+)?(" + "|".join(MESES_TXT) + r")\b(?:\s+(?:de\s+)?(\d{4}))?", re.I)
+
+
+def _fechas(line, carrera):
+    """Fechas de una línea («20/11/2026», «20/11», «20 de novembro»); sin año, el de la carrera."""
+    out = []
+    for d, m, y in FECHA_NUM.findall(line):
+        out.append((d, m, y))
+    for d, mes, y in FECHA_TXT.findall(line):
+        out.append((d, MESES_TXT[mes.lower()], y))
+    res = []
+    for d, m, y in out:
+        anio = int(y) if y else carrera.year
+        anio = anio + 2000 if anio < 100 else anio
+        try:
+            f = date(anio, int(m), int(d))
+        except ValueError:
+            continue
+        if not y and f > carrera:      # «ata o 28/12» de una carrera de enero
+            try:
+                f = f.replace(year=f.year - 1)
+            except ValueError:
+                continue
+        res.append(f)
+    return res
+
+
+def plazo_inscripcion(txt, carrera):
+    """Último día de inscripción según la ficha de Carreiras Galegas: la fecha
+    más tardía (sin pasar del día de la carrera ni irse a más de 6 meses antes)
+    de las líneas que hablan de inscripción o plazo. Si la línea es un título
+    («Inscricións») la fecha puede ir en las dos siguientes."""
+    lines = txt.splitlines()
+    cands = []
+    for i, line in enumerate(lines):
+        if not CLAVE_PLAZO.search(line) or re.search(r"dorsa|recoll|recog|entrega|trofeo|premio", line, re.I):
+            continue
+        fs = _fechas(line, carrera)
+        if not fs and len(line) < 40:
+            for nxt in lines[i + 1:i + 3]:
+                fs = _fechas(nxt, carrera)
+                if fs:
+                    break
+        cands += [f for f in fs if carrera - timedelta(days=180) <= f <= carrera]
+    return max(cands) if cands else None
+
+
 def distancias(txt):
     """Distancias que menciona la ficha («percorrido de 10 km», «8.000 metros»,
     «21,097 km»). Se saltan las líneas de precios e inscripción."""
@@ -182,6 +240,9 @@ def carreiras_galegas():
                 r["time"] = t
             if lugar:
                 r["start"] = lugar
+            plazo = plazo_inscripcion(txt, date.fromisoformat(r["date"]))
+            if plazo:
+                r["deadline"] = plazo.isoformat()
             for line in txt.splitlines():
                 if re.search(r"\bcircu[ií]to\b", line, re.I) and len(line) < 90:
                     r["circuit"] = line.strip()
@@ -276,8 +337,67 @@ def _ccnorte_evento(art):
     }
 
 
+# ─── Coordenadas (Nominatim) ───
+
+NOMINATIM = "https://nominatim.openstreetmap.org/search"
+
+
+def _consultas(place, region):
+    """Qué buscar en el mapa: la localidad entera y, si son varias
+    («Fene, Narón e Ferrol», «Ordes - Oroso»), la primera."""
+    place = re.sub(r"\s+", " ", (place or "").strip())
+    if not place or len(place) > 60:
+        return []
+    zona = region if region and region != "Galicia" else None
+    base = [place]
+    first = re.split(r",| - | e | y |/", place)[0].strip()
+    if first and first != place:
+        base.append(first)
+    return [", ".join(x for x in (b, zona, "Galicia" if not zona else None, "España") if x) for b in base] + \
+           ([f"{b}, España" for b in base] if not zona else [])
+
+
+def geolocalizar(items, cache_path):
+    """Añade lat/lon a cada carrera según su localidad. Respeta el límite de
+    Nominatim (1 consulta por segundo) y guarda la caché, también lo que no se
+    encontró, para no repetir consultas."""
+    try:
+        with open(cache_path, encoding="utf-8") as f:
+            cache = json.load(f)
+    except (OSError, ValueError):
+        cache = {}
+    s = requests.Session()
+    hechas, fallos = 0, 0
+    for r in items:
+        for q in _consultas(r.get("place"), r.get("region")):
+            k = q.lower()
+            if k not in cache:
+                if hechas >= 150 or fallos >= 5:
+                    break
+                time.sleep(1.1)
+                hechas += 1
+                try:
+                    resp = s.get(NOMINATIM, params={"q": q, "format": "json", "limit": 1, "countrycodes": "es"},
+                                 headers={"User-Agent": "MiSalud/1.0 (github.com/tonicastrof/mi-salud)"}, timeout=20)
+                    resp.raise_for_status()
+                    got = resp.json()
+                except Exception as e:
+                    fallos += 1
+                    print("  sin coordenadas:", q, e.__class__.__name__)
+                    continue
+                cache[k] = [round(float(got[0]["lat"]), 4), round(float(got[0]["lon"]), 4)] if got else None
+            if cache[k]:
+                r["lat"], r["lon"] = cache[k]
+                break
+    with open(cache_path, "w", encoding="utf-8") as f:
+        json.dump(cache, f, ensure_ascii=False, indent=0, sort_keys=True)
+    con = sum(1 for r in items if "lat" in r)
+    print(f"Coordenadas: {con}/{len(items)} carreras ({hechas} consultas nuevas)")
+
+
 def main():
     salida = sys.argv[1] if len(sys.argv) > 1 else "carreras.json"
+    geo = sys.argv[2] if len(sys.argv) > 2 else "geo.json"
     items, fuentes = [], {}
     for nombre, fn in (("carreirasgalegas", carreiras_galegas), ("ccnorte", ccnorte)):
         try:
@@ -290,6 +410,10 @@ def main():
             print(f"{nombre}: ERROR {e!r}")
     if not items:
         sys.exit("Ninguna fuente devolvió carreras")
+    try:
+        geolocalizar(items, geo)
+    except Exception as e:      # sin mapa la app sigue funcionando, solo sin filtro de distancia
+        print("Coordenadas: ERROR", repr(e))
     with open(salida, "w", encoding="utf-8") as f:
         json.dump({"generated_at": datetime.utcnow().isoformat() + "Z", "sources": fuentes, "items": items},
                   f, ensure_ascii=False, indent=1)

@@ -7,6 +7,8 @@ normalizan las carreras, se juntan las que salen en las dos webs y se
 detectan las pruebas nuevas. Así el servidor no necesita navegador ni claves.
 
   CARRERAS_DATA_URL  de dónde leer el JSON (por defecto, la rama `datos`)
+  CASA_LAT / CASA_LON / CASA_NOMBRE  desde dónde se mide la distancia a cada
+                     carrera (por defecto, Noia)
 
 Redis:
   races          {"items": [...], "fetched_at", "scraped_at", "sources", "error"}
@@ -15,6 +17,7 @@ Redis:
                  de las pruebas que aparecen entre una descarga y la siguiente
 """
 import json
+import math
 import os
 import re
 import unicodedata
@@ -29,6 +32,7 @@ KEY_SIGNED = "races_signed"
 KEY_SEEN = "races_seen"
 MAX_SEEN = 4000
 DATA_URL = "https://raw.githubusercontent.com/tonicastrof/mi-salud/datos/carreras.json"
+CASA = (42.7849, -8.8877, "Noia")
 FUENTES = {"carreirasgalegas": "Carreiras Galegas", "ccnorte": "CCNorte"}
 
 DIAS = ["lun", "mar", "mié", "jue", "vie", "sáb", "dom"]
@@ -143,6 +147,8 @@ def normalize(it):
         "price": it.get("price") or None,
         "start": it.get("start") or None,
         "url": it.get("url"),
+        "lat": it.get("lat"),
+        "lon": it.get("lon"),
         "source": FUENTES.get(it.get("source"), it.get("source")),
     }
 
@@ -240,6 +246,22 @@ def set_signed(rid, on, snapshot=None):
 
 # ─── Lectura para la app, el widget y el entrenador ───
 
+def casa():
+    try:
+        return float(os.environ["CASA_LAT"]), float(os.environ["CASA_LON"]), os.getenv("CASA_NOMBRE") or "casa"
+    except (KeyError, ValueError):
+        return CASA
+
+
+def km_desde(lat, lon, origen):
+    """Distancia en línea recta (km) entre la carrera y casa; None si no tiene coordenadas."""
+    if lat is None or lon is None:
+        return None
+    la1, lo1, la2, lo2 = map(math.radians, (origen[0], origen[1], float(lat), float(lon)))
+    a = math.sin((la2 - la1) / 2) ** 2 + math.cos(la1) * math.cos(la2) * math.sin((lo2 - lo1) / 2) ** 2
+    return round(2 * 6371 * math.asin(math.sqrt(a)))
+
+
 def upcoming_signed(signed=None, days=None):
     today = hoy()
     out = []
@@ -264,6 +286,7 @@ def payload():
     seen = load(KEY_SEEN) or {}
     new = set(seen.get("new") or [])
     today = hoy().isoformat()
+    origen = casa()
     items = [dict(r, is_new=r["id"] in new, signed=r["id"] in signed)
              for r in data.get("items") or [] if r["date"] >= today]
     listed = {r["id"] for r in items}
@@ -271,8 +294,10 @@ def payload():
     for r in upcoming_signed(signed):
         if r["id"] not in listed:
             items.append(dict(r, is_new=False, signed=True))
+    for r in items:
+        r["km_casa"] = km_desde(r.get("lat"), r.get("lon"), origen)
     items.sort(key=lambda r: (r["date"], r.get("time") or "99", r["name"]))
-    return {"configured": bool(data), "items": items, "fetched_at": data.get("fetched_at"),
+    return {"configured": bool(data), "items": items, "home": origen[2], "fetched_at": data.get("fetched_at"),
             "scraped_at": data.get("scraped_at"), "sources": data.get("sources"),
             "error": data.get("error"), "new_count": sum(1 for r in items if r["is_new"]),
             "new_key": seen.get("new_key")}

@@ -2,7 +2,8 @@ name: Carreras
 
 # Descarga el calendario de Carreiras Galegas y CCNorte y lo publica en la
 # rama `datos` (carreras.json). La app lo lee de ahí en su sincronización
-# diaria. Para descargarlo en el momento: pestaña Actions → Carreras → Run workflow.
+# diaria. También publica geo.json, la caché de coordenadas de cada localidad.
+# Para descargarlo en el momento: pestaña Actions → Carreras → Run workflow.
 on:
   schedule:
     - cron: "23 4 * * *"      # 06:23 en Galicia (horario de verano), antes del cron de la app
@@ -34,8 +35,13 @@ jobs:
       - name: Dependencias
         run: pip install -q requests beautifulsoup4 selenium
 
+      - name: Caché de coordenadas
+        # La de la descarga anterior (rama datos), para no volver a preguntar a Nominatim
+        run: |
+          git fetch -q --depth=1 origin datos && git show origin/datos:geo.json > geo.json || echo "{}" > geo.json
+
       - name: Descargar las carreras
-        run: python scripts/carreras/scrape.py carreras.json
+        run: python scripts/carreras/scrape.py carreras.json geo.json
 
       - name: Muestra
         run: |
@@ -52,11 +58,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mkdir pub && cp carreras.json pub/ && cd pub
+          mkdir pub && cp carreras.json geo.json pub/ && cd pub
           git init -q -b datos
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add carreras.json
+          git add carreras.json geo.json
           git commit -qm "Carreras $(date -u +%F)"
           # Un solo commit cada vez: la rama no crece con el historial
           git push -qf "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" datos
