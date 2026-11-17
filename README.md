@@ -211,6 +211,25 @@ FC**, los parciales por km y los mejores esfuerzos. Desde ahí puedes pulsar
 «Preguntar al entrenador sobre esta sesión» y el chat arranca con esa actividad
 como contexto (parciales y zonas incluidos).
 
+## El tiempo en Noia para cada entreno
+
+La tarjeta **Hoy** y cada entreno del plan de Garmin (pestaña Coach) traen la
+previsión de Noia para ese día: cielo, mínima/máxima, probabilidad y litros de
+lluvia, viento con dirección y rachas, y salida/puesta del sol. Además propone
+la **mejor franja** para entrenar (con la duración del entreno) penalizando
+lluvia, viento, frío/calor, UV y oscuridad.
+
+«Ver detalles» abre la previsión hora a hora (temperatura y sensación, lluvia,
+viento y rachas con su dirección) con la franja recomendada marcada, y avisos
+prácticos: chubasquero, rachas en zonas expuestas, guiarse por FC con viento,
+ropa según la sensación térmica, frontal si anochece…
+
+- Los datos son de [Open-Meteo](https://open-meteo.com): gratis, sin clave y
+  con CORS, así que se piden **desde el navegador** y no tocan Vercel.
+- Llega hasta 16 días, de sobra para las 2 semanas del plan.
+- «Preguntar por este entreno» añade la previsión a la pregunta, para que el
+  entrenador tenga en cuenta lluvia y viento.
+
 ## Entrenador IA (Claude)
 
 Hay dos formas de usarlo, y no son excluyentes.

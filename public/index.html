@@ -59,6 +59,14 @@ const IC={
   flag:["M5 21V4","M5 4h11l-2 4 2 4H5"],
   search:["M11 4a7 7 0 1 0 0 14a7 7 0 1 0 0-14z","M20 20l-3.5-3.5"],
   check:["m5 12 5 5 9-10"],
+  cloud:["M7 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.1 11.1 3.5 3.5 0 0 0 7 18z"],
+  psun:["M8 2.5v1.5M3 8h-1.5M4.5 4.5l1 1M11.5 4.5l-1 1M5.3 10.2A3 3 0 1 1 10.6 7.4","M9 20h9a3.5 3.5 0 0 0 .4-7A5 5 0 0 0 9 12.6a3.7 3.7 0 0 0 0 7.4z"],
+  rain:["M7 15h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.1 8.1 3.5 3.5 0 0 0 7 15z","M8 18l-1 3M12 18l-1 3M16 18l-1 3"],
+  storm:["M7 15h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.1 8.1 3.5 3.5 0 0 0 7 15z","M13 16l-2 3h3l-2 3"],
+  snow:["M7 15h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.1 8.1 3.5 3.5 0 0 0 7 15z","M8 19h.01M12 19h.01M16 19h.01M10 22h.01M14 22h.01"],
+  fog:["M4 9h16","M4 13h16","M4 17h12"],
+  wind:["M3 8h10a3 3 0 1 0-3-3","M3 12h15a3 3 0 1 1-3 3","M3 16h7"],
+  drop:["M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"],
 };
 function Ic({n,s,w,c,style}){
   return h("svg",{width:s||18,height:s||18,viewBox:"0 0 24 24",fill:"none",stroke:c||"currentColor",strokeWidth:w||2,strokeLinecap:"round",strokeLinejoin:"round","aria-hidden":true,style:{flex:"0 0 auto",display:"block",...(style||{})}},
@@ -467,6 +475,7 @@ function Plan({t,workouts,syncedAt,onAsk,focus}){
           h("span",{style:{fontSize:16,color:t.mt,transform:abierto?"rotate(90deg)":"none",transition:"transform 0.2s"}},"›")),
         abierto&&h("div",{style:{padding:"0 0 12px 44px",display:"flex",flexDirection:"column",gap:8}},
           w.description&&h("div",{style:{fontSize:12,color:t.sb,lineHeight:1.5}},w.description),
+          !w.done&&h(Tiempo,{t,date:w.date,horasEntreno:horasDe(w)}),
           w.done&&h(Cumplimiento,{t,w,onAsk}),
           // Hecho: el plan ya sale en la comparación; el original, plegado
           w.done&&(w.steps||[]).length>0&&h("button",{onClick:()=>setVerPlan(verPlan===i?null:i),style:{alignSelf:"flex-start",border:"none",background:"transparent",padding:0,color:t.sb,cursor:"pointer",fontSize:11,fontWeight:700}},
@@ -521,7 +530,150 @@ function Cumplimiento({t,w,onAsk}){
       h("button",{onClick:copiar,style:chip(t,{color:copiado?t.bG.f:t.sb})},copiado?"✓ Copiado":h(React.Fragment,null,h(Ic,{n:"copy",s:14}),"Copiar para Claude"))));
 }
 
+// ─── El tiempo en Noia para el entreno ───
+// Open-Meteo: gratis, sin clave y con CORS, así que se pide desde el navegador.
+// Da 16 días de previsión hora a hora: cubre los 14 días del plan de Garmin.
+const NOIA={lat:42.7849,lon:-8.8877};
+const WMO={0:["Despejado","sun"],1:["Casi despejado","psun"],2:["Parcialmente nuboso","psun"],3:["Cubierto","cloud"],
+  45:["Niebla","fog"],48:["Niebla","fog"],51:["Llovizna débil","rain"],53:["Llovizna","rain"],55:["Llovizna intensa","rain"],
+  56:["Llovizna helada","rain"],57:["Llovizna helada","rain"],61:["Lluvia débil","rain"],63:["Lluvia","rain"],65:["Lluvia fuerte","rain"],
+  66:["Lluvia helada","rain"],67:["Lluvia helada","rain"],71:["Nieve débil","snow"],73:["Nieve","snow"],75:["Nieve fuerte","snow"],77:["Nieve","snow"],
+  80:["Chubascos débiles","rain"],81:["Chubascos","rain"],82:["Chubascos fuertes","rain"],85:["Chubascos de nieve","snow"],86:["Chubascos de nieve","snow"],
+  95:["Tormenta","storm"],96:["Tormenta con granizo","storm"],99:["Tormenta con granizo","storm"]};
+const wmo=(c,dia)=>{const x=WMO[c]||["—","cloud"];return[x[0],!dia&&(x[1]==="sun"||x[1]==="psun")?"moon":x[1]]};
+const RUMBO=["N","NE","E","SE","S","SO","O","NO"];
+const rumbo=(g)=>RUMBO[Math.round(((g||0)%360)/45)%8];
+let _tiempo=null,_tiempoAt=0;
+// Una petición compartida por todas las tarjetas; se renueva cada 30 min
+function cargarTiempo(){
+  if(_tiempo&&Date.now()-_tiempoAt<18e5)return _tiempo;
+  _tiempoAt=Date.now();
+  const H="temperature_2m,apparent_temperature,precipitation_probability,precipitation,weather_code,wind_speed_10m,wind_gusts_10m,wind_direction_10m,relative_humidity_2m,uv_index,is_day";
+  const D="weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,sunrise,sunset,uv_index_max";
+  _tiempo=fetch("https://api.open-meteo.com/v1/forecast?latitude="+NOIA.lat+"&longitude="+NOIA.lon+"&hourly="+H+"&daily="+D+"&timezone=Europe%2FMadrid&forecast_days=16&wind_speed_unit=kmh")
+    .then(r=>{if(!r.ok)throw 0;return r.json()})
+    .catch(()=>{_tiempo=null;return{error:"No se pudo cargar el tiempo"}});
+  return _tiempo;
+}
+// Las horas y el resumen de un día concreto
+function tiempoDia(j,date){
+  if(!j||j.error||!j.daily)return null;
+  const di=j.daily.time.indexOf(date);if(di<0)return null;
+  const d=j.daily,hh=j.hourly,horas=[];
+  hh.time.forEach((ts,i)=>{if(ts.slice(0,10)!==date)return;
+    horas.push({h:+ts.slice(11,13),temp:hh.temperature_2m[i],feel:hh.apparent_temperature[i],pp:hh.precipitation_probability[i]||0,mm:hh.precipitation[i]||0,
+      code:hh.weather_code[i],wind:hh.wind_speed_10m[i]||0,gust:hh.wind_gusts_10m[i]||0,dir:hh.wind_direction_10m[i],hum:hh.relative_humidity_2m[i],uv:hh.uv_index[i]||0,dia:!!hh.is_day[i]})});
+  return{date,code:d.weather_code[di],max:d.temperature_2m_max[di],min:d.temperature_2m_min[di],mm:d.precipitation_sum[di]||0,pp:d.precipitation_probability_max[di]||0,
+    wind:d.wind_speed_10m_max[di]||0,gust:d.wind_gusts_10m_max[di]||0,dir:d.wind_direction_10m_dominant[di],uv:d.uv_index_max[di]||0,
+    sunrise:(d.sunrise[di]||"").slice(11,16),sunset:(d.sunset[di]||"").slice(11,16),horas};
+}
+function useTiempo(date){
+  const[d,setD]=useState(undefined);
+  useEffect(()=>{let vivo=true;if(!date){setD(null);return}
+    cargarTiempo().then(j=>{if(vivo)setD(j&&j.error?{error:j.error}:tiempoDia(j,date))});return()=>{vivo=false}},[date]);
+  return d;
+}
+// Lo incómodo de una hora para correr: cuanto más bajo, mejor
+function malestar(x,sunrise,sunset){
+  const hm=String(x.h).padStart(2,"0")+":00";
+  return x.pp*0.5+x.mm*25+Math.max(0,x.wind-15)*1.2+Math.max(0,x.gust-40)*0.8
+    +Math.max(0,8-x.feel)*2+Math.max(0,x.feel-20)*2.5+(x.uv>=6?8:0)
+    +((sunrise&&hm<sunrise)||(sunset&&hm>=sunset)?20:0);
+}
+// Mejor franja de N horas entre las 7:00 y las 22:00 (hoy, solo las que quedan)
+function mejorFranja(td,n){
+  if(!td)return null;n=Math.max(1,n||1);
+  const ahora=new Date(),hoy=localISO(ahora)===td.date;
+  const hs=td.horas.filter(x=>x.h>=7&&x.h<=21&&(!hoy||x.h>ahora.getHours()));
+  let best=null;
+  for(let i=0;i+n<=hs.length;i++){
+    const win=hs.slice(i,i+n);if(win[n-1].h-win[0].h!==n-1)continue;
+    const s=win.reduce((a,x)=>a+malestar(x,td.sunrise,td.sunset),0)/n;
+    if(!best||s<best.s)best={s,desde:win[0].h,hasta:win[n-1].h+1,horas:win};
+  }
+  return best;
+}
+// Avisos prácticos para el día (o la franja, si se pasa)
+function avisosTiempo(td,horas){
+  const ahora=new Date(),hoy=localISO(ahora)===td.date;
+  const hs=horas&&horas.length?horas:td.horas.filter(x=>x.h>=7&&x.h<=22&&(!hoy||x.h>=ahora.getHours()));if(!hs.length)return[];
+  const mx=(k)=>Math.max(...hs.map(x=>x[k])),mn=(k)=>Math.min(...hs.map(x=>x[k]));
+  const out=[];
+  if(mx("mm")>=1||mx("pp")>=60)out.push("Lluvia probable: chubasquero o gorra, y ojo con el firme resbaladizo en bajadas y pasos de cebra.");
+  else if(mx("pp")>=30)out.push("Puede caer algo: un cortavientos ligero no sobra.");
+  if(mx("gust")>=50)out.push("Rachas de hasta "+Math.round(mx("gust"))+" km/h: evita tramos expuestos junto a la ría y los altos.");
+  if(mx("wind")>=25)out.push("Viento sostenido de "+Math.round(mx("wind"))+" km/h: en series no persigas el ritmo, guíate por FC o sensaciones; empieza contra el viento y vuelve a favor.");
+  if(mn("feel")<=3)out.push("Sensación de "+Math.round(mn("feel"))+"°: guantes, gorro y capas; calienta más de lo normal.");
+  else if(mn("feel")<=8)out.push("Fresco ("+Math.round(mn("feel"))+"° de sensación): manga larga o manguitos.");
+  if(mx("feel")>=24)out.push("Calor ("+Math.round(mx("feel"))+"° de sensación): hidrátate y baja algo el ritmo.");
+  if(mx("hum")>=90&&mx("feel")>=18)out.push("Humedad muy alta: el pulso subirá más de lo normal para el mismo ritmo.");
+  if(mx("uv")>=6)out.push("UV "+Math.round(mx("uv"))+": crema y gorra.");
+  if(horas&&td.sunset&&String(hs[hs.length-1].h+1).padStart(2,"0")+":00">td.sunset)out.push("Anochece a las "+td.sunset+": frontal o chaleco reflectante.");
+  return out;
+}
+// Texto corto para pasárselo al entrenador
+function tiempoTexto(td,n){
+  if(!td)return"";
+  const[txt]=wmo(td.code,true),b=mejorFranja(td,n);
+  return "Tiempo previsto en Noia: "+txt.toLowerCase()+", "+Math.round(td.min)+"–"+Math.round(td.max)+"°, lluvia "+td.pp+"% ("+td.mm.toFixed(1).replace(".",",")+" mm), viento hasta "+Math.round(td.wind)+" km/h del "+rumbo(td.dir)+" con rachas de "+Math.round(td.gust)+" km/h."
+    +(b?" Mejor franja: "+b.desde+":00–"+b.hasta+":00.":"");
+}
+function Flecha({dir,c}){
+  // La dirección es de dónde viene el viento; la flecha apunta hacia dónde sopla
+  return h("span",{title:"Del "+rumbo(dir),style:{display:"inline-block",transform:"rotate("+(dir||0)+"deg)",color:c,fontSize:11,lineHeight:1}},"↓");
+}
+function Tiempo({t,date,horasEntreno}){
+  const td=useTiempo(date);
+  const[abierto,setAbierto]=useState(false);
+  if(td===undefined)return h("div",{style:{fontSize:12,color:t.sb,padding:"4px 0"}},h(Spin,null)," Tiempo en Noia…");
+  if(!td||td.error){
+    if(td&&td.error)return h("div",{style:{fontSize:11,color:t.mt}},td.error);
+    return h("div",{style:{fontSize:11,color:t.mt}},"Aún no hay previsión para ese día (llega hasta 16 días).");
+  }
+  const[txt,ico]=wmo(td.code,true);
+  const b=mejorFranja(td,horasEntreno);
+  const av=avisosTiempo(td,b?b.horas:null);
+  const lluviaC=td.pp>=60?A.ride:td.pp>=30?A.steps:t.sb;
+  const vientoC=td.gust>=50?A.hr:td.wind>=25?A.stress:t.sb;
+  const ahora=new Date(),hoy=localISO(ahora)===td.date;
+  const visibles=td.horas.filter(x=>x.h>=6&&x.h<=23&&(!hoy||x.h>=ahora.getHours()));
+  const enFranja=(x)=>b&&x.h>=b.desde&&x.h<b.hasta;
+  const fila={display:"grid",gridTemplateColumns:"28px minmax(0,1fr) 62px 60px",columnGap:6,alignItems:"center",whiteSpace:"nowrap"};
+  return h("div",{style:{background:t.ph,borderRadius:10,padding:"10px 12px",display:"flex",flexDirection:"column",gap:8}},
+    h("div",{style:{display:"flex",alignItems:"center",gap:10}},
+      h("span",{style:{color:t.sb}},h(Ic,{n:ico,s:26})),
+      h("div",{style:{flex:1,minWidth:0}},
+        h("div",{style:{fontSize:12,color:t.sb}},"Tiempo en Noia · "+cuando(td.date).toLowerCase()),
+        h("div",{style:{fontSize:14,fontWeight:600,color:t.tx}},txt+" · "+Math.round(td.min)+"–"+Math.round(td.max)+"°")),
+      h("button",{onClick:()=>setAbierto(!abierto),style:chip(t,{flex:"0 0 auto",height:30,padding:"0 10px"})},abierto?"Menos":"Ver detalles")),
+    h("div",{style:{display:"flex",gap:14,flexWrap:"wrap",fontSize:12}},
+      h("span",{style:{display:"inline-flex",alignItems:"center",gap:4,color:lluviaC}},h(Ic,{n:"drop",s:14}),td.pp+"%"+(td.mm>=0.1?" · "+td.mm.toFixed(1).replace(".",",")+" mm":"")),
+      h("span",{style:{display:"inline-flex",alignItems:"center",gap:4,color:vientoC}},h(Ic,{n:"wind",s:14}),Math.round(td.wind)+" km/h "+rumbo(td.dir)+" · rachas "+Math.round(td.gust)),
+      td.sunset&&h("span",{style:{display:"inline-flex",alignItems:"center",gap:4,color:t.sb}},h(Ic,{n:"sun",s:14}),td.sunrise+"–"+td.sunset)),
+    b&&h("div",{style:{fontSize:12,color:t.tx}},
+      h("strong",null,"Mejor franja: "),b.desde+":00–"+b.hasta+":00",
+      h("span",{style:{color:t.sb}}," · "+Math.round(b.horas[0].temp)+"°, lluvia "+Math.max(...b.horas.map(x=>x.pp))+"%, viento "+Math.round(Math.max(...b.horas.map(x=>x.wind)))+" km/h")),
+    abierto&&h("div",{style:{display:"flex",flexDirection:"column",gap:8}},
+      av.length>0&&h("ul",{style:{margin:0,paddingLeft:18,display:"flex",flexDirection:"column",gap:4}},
+        av.map((a,i)=>h("li",{key:i,style:{fontSize:12,color:t.tx,lineHeight:1.45}},a))),
+      h("div",{style:{fontSize:11,color:t.sb}},"Humedad máx. "+Math.max(...td.horas.map(x=>x.hum))+"% · UV máx. "+Math.round(td.uv)),
+      h("div",{style:{display:"flex",flexDirection:"column",fontSize:12}},
+        h("div",{style:{...fila,fontSize:11,fontWeight:600,color:t.mt,paddingBottom:4,borderBottom:"1px solid "+t.bd}},
+          ["Hora","Temp.","Lluvia","Viento"].map((x,i)=>h("span",{key:i},x))),
+        visibles.map(x=>{
+          const[tx2,ic2]=wmo(x.code,x.dia),f=enFranja(x);
+          return h("div",{key:x.h,style:{...fila,padding:"5px 6px",margin:"0 -6px",borderBottom:"1px solid "+t.ln,borderRadius:f?6:0,background:f?A.bat+"24":"transparent"}},
+            h("span",{style:{fontWeight:f?700:500,color:x.dia?t.tx:t.sb}},String(x.h).padStart(2,"0")+"h"),
+            h("span",{title:tx2,style:{display:"inline-flex",alignItems:"center",gap:5,color:t.tx}},h(Ic,{n:ic2,s:14,c:t.sb}),Math.round(x.temp)+"°",h("span",{style:{color:t.mt}},"("+Math.round(x.feel)+"°)")),
+            h("span",{style:{color:x.pp>=60?A.ride:x.pp>=30?A.steps:t.sb,fontWeight:x.mm>=0.5?700:500}},x.pp+"%"+(x.mm>=0.1?" "+x.mm.toFixed(1).replace(".",","):"")),
+            h("span",{style:{display:"inline-flex",alignItems:"center",gap:4,color:x.gust>=50?A.hr:x.wind>=25?A.stress:t.tx}},h(Flecha,{dir:x.dir,c:t.sb}),Math.round(x.wind)+" ("+Math.round(x.gust)+")"));
+        })),
+      h("div",{style:{fontSize:11,color:t.mt,lineHeight:1.4}},
+        (b?"En verde, la mejor franja para "+(horasEntreno>1?"las "+horasEntreno+" horas del entreno":"el entreno")+". ":"")+"Temperatura con la sensación térmica entre paréntesis. Viento en km/h con las rachas entre paréntesis; la flecha marca hacia dónde sopla. Lluvia en % de probabilidad y mm por hora. Previsión de Open-Meteo.")));
+}
+
 // ─── Hoy: cómo estás y qué toca ───
+const horasDe=(w)=>w&&w.duration_sec?Math.max(1,Math.ceil(w.duration_sec/3600)):1;
 const rdColor=(s)=>s>=70?A.bat:s>=50?A.stress:A.hr;
 const DUROS=["Umbral","VO₂ máx","Anaeróbico","Sprint","Tempo"];
 function Hoy({t,rd,sl,hrv,workouts,onPlan}){
@@ -574,6 +726,8 @@ function Hoy({t,rd,sl,hrv,workouts,onPlan}){
         "Próximo: ",h("strong",{style:{color:t.tx}},cuando(sig.date).toLowerCase()),
         " · "+sig.title+(sig.duration_sec?" · "+Math.round(sig.duration_sec/60)+" min":"")),
       h("span",{style:{fontSize:16,color:t.mt}},"›")),
+    // El tiempo para lo que toca: lo pendiente, o el siguiente si hoy ya está hecho
+    h(Tiempo,{t,date:(hecho?(sig&&sig.date):w&&w.date)||today,horasEntreno:horasDe(hecho?sig:w)}),
     aviso&&h("div",{style:{display:"flex",gap:8,alignItems:"flex-start",fontSize:12,lineHeight:1.45,background:t.bY.b,color:t.bY.f,borderRadius:10,padding:"9px 11px"}},h(Ic,{n:"alert",s:16}),aviso));
 }
 
@@ -640,10 +794,13 @@ function Coach({t,ctx,onClearCtx,plan,planAt,focus,draft}){
   },[secret,ctx]);
 
   // Deja la pregunta escrita; si el chat no está activo, sirve para copiarla junto al informe
-  const preguntarEntreno=useCallback((w,resumen)=>{
+  const preguntarEntreno=useCallback(async(w,resumen)=>{
+    // Con la previsión de Noia para ese día, para que tenga en cuenta lluvia y viento
+    let tiempo="";
+    if(!resumen){try{tiempo=tiempoTexto(tiempoDia(await cargarTiempo(),w.date),horasDe(w))}catch(e){}}
     setInput(resumen
       ?"Valora cómo hice este entreno frente a lo que pedía el plan y dime qué cambiarías la próxima vez:\n\n"+resumen
-      :"¿Cómo afronto el entreno «"+w.title+"» de "+cuando(w.date).toLowerCase()+" según cómo voy de fatiga y sueño?");
+      :"¿Cómo afronto el entreno «"+w.title+"» de "+cuando(w.date).toLowerCase()+" según cómo voy de fatiga y sueño"+(tiempo?" y el tiempo que va a hacer?\n\n"+tiempo:"?"));
     if(end.current)end.current.scrollIntoView({behavior:"smooth",block:"end"});
   },[]);
 
