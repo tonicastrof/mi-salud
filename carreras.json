@@ -1,0 +1,120 @@
+{
+ "generated_at": "2026-11-28T13:14:25.643525Z",
+ "sources": {
+  "carreirasgalegas": {
+   "ok": false,
+   "count": 0,
+   "error": "TimeoutException: Message: \n"
+  },
+  "ccnorte": {
+   "ok": true,
+   "count": 5
+  }
+ },
+ "items": [
+  {
+   "source": "ccnorte",
+   "id": "ccn-li-trofeo-pedestrismo-concello-de-cangas-memorial-pepe-cordeiro",
+   "name": "LI TROFEO PEDESTRISMO CONCELLO DE CANGAS  Memorial Pepe Cordeiro",
+   "date": "2026-12-06",
+   "time": "10:00",
+   "place": "Cangas",
+   "region": "Galicia",
+   "km": [
+    6.0,
+    2.0,
+    1.5,
+    1.0,
+    0.5,
+    0.25,
+    0.175
+   ],
+   "price": "0,00€",
+   "deadline": "2026-12-03",
+   "url": "https://ccnorte.com/evento/detalle/dp/1/id/3400/li-trofeo-pedestrismo-concello-de-cangas-memorial-pepe-cordeiro",
+   "lat": 42.4701,
+   "lon": -7.6459
+  },
+  {
+   "source": "ccnorte",
+   "id": "ccn-sarria-10km-os-máis-rápidos",
+   "name": "SARRIA 10Km Os máis rápidos",
+   "date": "2026-12-13",
+   "time": "10:30",
+   "place": "Sarria",
+   "region": "Galicia",
+   "km": [
+    10.0,
+    5.0,
+    2.5,
+    1.5,
+    0.2
+   ],
+   "price": "5,00€",
+   "deadline": "2026-12-10",
+   "url": "https://ccnorte.com/evento/index/dp/1",
+   "lat": 42.771,
+   "lon": -7.4335
+  },
+  {
+   "source": "ccnorte",
+   "id": "ccn-x-carreira-nocturna-de-sada-ninguen-sen-nadal",
+   "name": "X CARREIRA NOCTURNA DE SADA “Ninguén sen Nadal”",
+   "date": "2026-12-18",
+   "time": "19:00",
+   "place": "Sada",
+   "region": "Galicia",
+   "km": [
+    5.0,
+    0.9,
+    0.6,
+    0.3,
+    0.1
+   ],
+   "price": "0,00€",
+   "deadline": "2026-12-17",
+   "url": "https://ccnorte.com/evento/detalle/dp/1/id/3156/x-carreira-nocturna-de-sada-ninguen-sen-nadal",
+   "lat": 43.3474,
+   "lon": -8.2771
+  },
+  {
+   "source": "ccnorte",
+   "id": "ccn-xxiii-popular-lugo-monumental-2026-gp-caixabank",
+   "name": "XXIII POPULAR LUGO MONUMENTAL 2026 G.P. CAIXABANK",
+   "date": "2026-12-20",
+   "time": "11:00",
+   "place": "Lugo",
+   "region": "Galicia",
+   "km": [
+    10.0,
+    1.8,
+    0.9,
+    0.2
+   ],
+   "price": "0,00€",
+   "deadline": "2026-12-13",
+   "url": "https://ccnorte.com/evento/detalle/dp/1/id/3415/xxiii-popular-lugo-monumental-2026-gp-caixabank",
+   "lat": 43.0395,
+   "lon": -7.4568
+  },
+  {
+   "source": "ccnorte",
+   "id": "ccn-iii-carreira-san-silvestre-no-corazon-de-galicia-chantada",
+   "name": "III CARREIRA SAN SILVESTRE NO CORAZON DE GALICIA CHANTADA",
+   "date": "2026-12-26",
+   "time": "17:15",
+   "place": "Chantada",
+   "region": "Galicia",
+   "km": [
+    5.0,
+    1.0,
+    0.2
+   ],
+   "price": "0,00€",
+   "deadline": "2026-12-24",
+   "url": "https://ccnorte.com/evento/detalle/dp/1/id/3408/iii-carreira-san-silvestre-no-corazon-de-galicia-chantada",
+   "lat": 42.6109,
+   "lon": -7.8107
+  }
+ ]
+}
